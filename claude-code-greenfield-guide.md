@@ -39,7 +39,7 @@ These principles come from the official practices detailed in §2.
 
 ## 2. Related official Anthropic practices
 
-What Anthropic has published on this topic and where this guide applies it. Marked *(summary)*: that part of the source page was read in summarized form, not verbatim; verify against the source before quoting it.
+What Anthropic has published on this topic and where this guide applies it.
 
 ### 2.1 *Effective harnesses for long-running agents* (Anthropic Engineering)
 The most direct reference for long greenfield projects.
@@ -845,7 +845,7 @@ Each anti-pattern comes with its symptom and its antidote. If you are an agent a
 **Maintenance:**
 - Claude Code tooling changes fast. Review §3, §4 and §15 against the official docs every quarter.
 - Before commercial use, check the licenses of third-party skills (deanpeters: CC BY-NC-SA 4.0).
-- Rows marked *(summary)* in §2.2 should be verified against the source before quoting.
+- §2.2 was verified against code.claude.com/docs/en/best-practices on 2026-11-08. Re-check it in the quarterly review.
 
 ---
 

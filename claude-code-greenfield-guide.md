@@ -78,10 +78,10 @@ The most direct reference for long greenfield projects.
 | **Stop hook** | Example `pnpm tsc --noEmit 1>&2 \|\| exit 2` in `.claude/settings.json`: exit code 2 blocks Claude from stopping. Claude Code overrides it after 8 consecutive blocks with no tool use | §6.2d |
 | **Course-correct** | `Esc` stops and keeps the work done so far. After **2 failed corrections**: `/clear` and a better prompt | P7 |
 | **Separate reviewer** | A read-only subagent (Read, Grep, Glob) that reviews against the spec. Include "skip style" or it will find something to fix in everything | Superpowers per-task reviewer (§7.2) |
-| **Writer/reviewer and parallel work** *(summary)* | One session writes, another reviews. Worktrees with `claude -w`; `/batch` to fan out work | `parallel_safe` (§6.3) · §7.6 |
-| **Before running unattended** *(summary)* | Answer 5 questions: done condition, self-check, scope, limits (`--max-turns`, `--max-budget-usd`) and sign-off. Try it on 3 files first | `/goal` templates with a cap · §9.4 |
+| **Writer/reviewer and parallel work** | One session writes, another reviews. Worktrees with `claude -w`; `/batch` to fan out work | `parallel_safe` (§6.3) · §7.6 |
+| **Before running unattended** | Answer 5 questions: done condition, self-check, scope, limits (`--max-turns`, `--max-budget-usd`) and sign-off. Try it on 3 files first | `/goal` templates with a cap · §9.4 |
 | **`/goal` and `/loop`** | `/goal`: "a condition that a separate model checks after every turn". `/loop`: background work that keeps sending requests; don't leave it running in a long conversation | §3 · §8.1 |
-| **Outdated advice** *(summary)* | Avoid ALL CAPS, "think hard" and "keep going" lines | Template style |
+| **Outdated advice** | Stop: managing context aggressively, IMPORTANT/ALL CAPS emphasis, subagents just to save context or get a better answer, `think hard`/`be thorough` (use effort; `ultrathink` still works), "keep going"/"don't be lazy" lines (give a check instead), and describing the architecture in `CLAUDE.md` | Template style |
 
 ### 2.3 Explore → Plan → Code → Commit (Anthropic's classic workflow)
 1. **Explore:** Claude reads the relevant code without editing.

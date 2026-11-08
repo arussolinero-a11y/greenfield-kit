@@ -1,0 +1,58 @@
+[
+  {
+    "id": "F-001",
+    "category": "infra",
+    "description": "Walking skeleton: GET /health returns { status: 'ok' } locally and in the deployed environment",
+    "depends_on": [],
+    "mode": "sdd",
+    "risk": "low",
+    "steps": ["curl localhost:3000/health → {\"status\":\"ok\"}", "curl <deployed-url>/health → {\"status\":\"ok\"}"],
+    "verify_cmd": "npm test -- health",
+    "human_review": false,
+    "parallel_safe": false,
+    "status": "pending",
+    "passes": false
+  },
+  {
+    "id": "F-002",
+    "category": "spike",
+    "description": "Choose a payment provider (ADR)",
+    "depends_on": [],
+    "mode": "spike",
+    "risk": "medium",
+    "steps": ["docs/decisions/0001-payments.md with options, trade-offs and a recommendation", "Human approval"],
+    "human_review": true,
+    "parallel_safe": true,
+    "status": "pending",
+    "passes": false
+  },
+  {
+    "id": "F-003",
+    "category": "design",
+    "description": "Design tokens and base components per docs/design/DESIGN.md",
+    "depends_on": ["F-001"],
+    "mode": "sdd",
+    "risk": "low",
+    "steps": ["/styleguide page shows colors, typography, buttons and inputs", "Desktop and mobile screenshots", "Text contrast ≥ 4.5:1"],
+    "verify_cmd": "npm run test:e2e -- styleguide",
+    "human_review": true,
+    "parallel_safe": true,
+    "status": "pending",
+    "passes": false
+  },
+  {
+    "id": "F-007",
+    "category": "security",
+    "description": "The webhook rejects invalid signatures without running business logic",
+    "depends_on": ["F-001"],
+    "mode": "sdd",
+    "risk": "high",
+    "extra_review": ["security"],
+    "steps": ["valid signature → 200", "tampered signature → 401", "0 calls to external services in the test log"],
+    "verify_cmd": "npm test -- webhook.signature",
+    "human_review": false,
+    "parallel_safe": true,
+    "status": "pending",
+    "passes": false
+  }
+]

@@ -1,0 +1,7 @@
+# Work log — <project>
+# One entry per session, newest on top. Keep it short: what was done, what's next, blockers.
+
+<YYYY-MM-DD> · Session 1 (initializer)
+- Profile in docs/project-profile.md. Skeleton with build/lint/test green.
+- <N> features in feature_list.json, all passes: false.
+- Next: F-001. Blockers: <none | what's missing and who provides it>.

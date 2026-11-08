@@ -1,0 +1,18 @@
+{
+  "name": "greenfield",
+  "version": "1.0.0",
+  "description": "Adaptive initializer (Phase 1), per-feature session starter (Phase 2) and pre-deploy checklist for greenfield projects with Claude Code. Orchestrates Superpowers and Anthropic's plugins instead of replacing them.",
+  "author": {
+    "name": "arussolinero-a11y"
+  },
+  "keywords": [
+    "greenfield",
+    "spec-driven",
+    "initializer",
+    "long-running-agents",
+    "pre-deploy"
+  ],
+  "license": "Apache-2.0",
+  "repository": "https://github.com/arussolinero-a11y/greenfield-kit",
+  "homepage": "https://github.com/arussolinero-a11y/greenfield-kit"
+}

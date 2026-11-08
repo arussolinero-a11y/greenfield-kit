@@ -39,7 +39,7 @@ These principles come from the official practices detailed in §2.
 
 ## 2. Related official Anthropic practices
 
-What Anthropic has published on this topic and where this guide applies it. Marked *(summary)*: that part of the source page was read in summarized form, not verbatim; verify against the source before quoting it.
+What Anthropic has published on this topic and where this guide applies it. Quotes in §2.2 were checked verbatim against the source page on 2026-11-08.
 
 ### 2.1 *Effective harnesses for long-running agents* (Anthropic Engineering)
 The most direct reference for long greenfield projects.
@@ -78,10 +78,10 @@ The most direct reference for long greenfield projects.
 | **Stop hook** | Example `pnpm tsc --noEmit 1>&2 \|\| exit 2` in `.claude/settings.json`: exit code 2 blocks Claude from stopping. Claude Code overrides it after 8 consecutive blocks with no tool use | §6.2d |
 | **Course-correct** | `Esc` stops and keeps the work done so far. After **2 failed corrections**: `/clear` and a better prompt | P7 |
 | **Separate reviewer** | A read-only subagent (Read, Grep, Glob) that reviews against the spec. Include "skip style" or it will find something to fix in everything | Superpowers per-task reviewer (§7.2) |
-| **Writer/reviewer and parallel work** *(summary)* | One session writes, another reviews. Worktrees with `claude -w`; `/batch` to fan out work | `parallel_safe` (§6.3) · §7.6 |
-| **Before running unattended** *(summary)* | Answer 5 questions: done condition, self-check, scope, limits (`--max-turns`, `--max-budget-usd`) and sign-off. Try it on 3 files first | `/goal` templates with a cap · §9.4 |
+| **Writer/reviewer and parallel work** | "A second session is also the easiest independent reviewer you can get": one session writes, another reviews, and you paste the findings back. `claude -w feature-auth` starts a session in a new worktree. `/batch` splits a task into 5 to 30 units; after you approve the plan, each unit gets its own worktree and opens a PR | `parallel_safe` (§6.3) · §7.6 |
+| **Before running unattended** | Go through five questions: *Does it know what done looks like? Can it check its own work? What's it allowed to touch? What stops it?* (`--max-turns`, `--max-budget-usd`, a spend limit) *Where does the result go, and who signs off?* For scripted runs: "Try it on three files first" | `/goal` templates with a cap · §9.4 |
 | **`/goal` and `/loop`** | `/goal`: "a condition that a separate model checks after every turn". `/loop`: background work that keeps sending requests; don't leave it running in a long conversation | §3 · §8.1 |
-| **Outdated advice** *(summary)* | Avoid ALL CAPS, "think hard" and "keep going" lines | Template style |
+| **What you can stop doing** | IMPORTANT/ALL CAPS ("piling on emphasis mostly makes Claude over-apply the rule"; use a hook or deny rule instead). `think hard` / `be thorough` (ordinary text, not effort keywords; `ultrathink` still works). Generic "keep going" lines (current models carry on through an agreed task). A concrete check to pass is different and still worth doing | Template style · P5 |
 
 ### 2.3 Explore → Plan → Code → Commit (Anthropic's classic workflow)
 1. **Explore:** Claude reads the relevant code without editing.
@@ -841,11 +841,12 @@ Each anti-pattern comes with its symptom and its antidote. If you are an agent a
 | v0.5 | Related official Anthropic practices |
 | v0.6 | Expanded Phase 0: market research, product, UX/UI, spec; scored tools |
 | **v1.0** | Kit setup; `greenfield` plugin (`initializer`, `next`, `preflight`); anti-patterns; pre-deploy checklist; end-to-end example; published in English |
+| v1.0.1 | §2.2 rows verified verbatim against the Best Practices page; *(summary)* markers removed |
 
 **Maintenance:**
 - Claude Code tooling changes fast. Review §3, §4 and §15 against the official docs every quarter.
 - Before commercial use, check the licenses of third-party skills (deanpeters: CC BY-NC-SA 4.0).
-- Rows marked *(summary)* in §2.2 should be verified against the source before quoting.
+- §2.2 quotes were verified against the source on 2026-11-08; re-check them during the quarterly review.
 
 ---
 

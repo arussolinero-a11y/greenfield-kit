@@ -1,16 +1,16 @@
 # Practical Guide: Greenfield Projects with Claude Code
 
-> Following Anthropic's best practices · **v1.0** · 2026-11-08
+> Following Anthropic's best practices · **v1.1** · 2026-11-09
 >
 > **Audience:** people and agents. If you are an agent: sections marked **RULE** are mandatory, decision tables tell you what to do in each context, and templates are meant to be copied as-is.
 >
-> **Status:** v1.0, ready to publish. Ships with the `greenfield` plugin (`/greenfield:initializer`, `/greenfield:next` and `/greenfield:preflight` skills) in this same kit. Version history in §16.
+> **Status:** v1.0, ready to publish. Ships with the `greenfield` plugin (`/greenfield:discover`, `/greenfield:initializer`, `/greenfield:next` and `/greenfield:preflight` skills) in this same kit. Version history in §16.
 
 ---
 
 ## 0. Summary in 30 seconds
 
-1. **Phase 0 — Product, UX/UI and spec:** (0A) market research + go/no-go if the product will be sold → (0B) product PRD → (0C) UX/UI, **always** → (0D) technical spec with Superpowers `brainstorming`. The human decides.
+1. **Phase 0 — Product, UX/UI and spec:** (0A) market research + go/no-go if the product will be sold → (0B) product PRD → (0C) UX/UI, **always** → (0D) technical spec with Superpowers `brainstorming`. One command runs it all: `/greenfield:discover`. The human decides.
 2. **Phase 1 — Adaptive initializer:** a session that **builds no features**. It reads the spec, profiles the project and generates the project's "memory" (`feature_list.json`, `init.sh`, progress log, `CLAUDE.md`, hooks, verification tooling). The human approves the list.
 3. **Phase 2 — Build:** one feature per session with Superpowers: `writing-plans` (you approve the plan) → `subagent-driven-development` (each task gets an implementer and a reviewer) → `finishing-a-development-branch` (PR). `/goal` acts as a safety net so the session doesn't stop halfway. Each feature's mode (`sdd`, `inline`, `ultracode`, `spike`, `human`) was set in Phase 1.
 4. **Phase 3 — Maintenance:** `/loop` to watch something during the session; cloud tasks for daily jobs and event-triggered jobs.
@@ -167,11 +167,11 @@ They don't compete: they control different axes. **`/goal` = when it ends**, **`
 
 ## 4. Setup: install the kit (once per machine or environment)
 
-This guide relies on plugins and skills from Anthropic and third parties. The kit's own `greenfield` plugin **only orchestrates**: it ties the pieces together and adds what none of them provide (adaptive initializer, session starter, preflight).
+This guide relies on plugins and skills from Anthropic and third parties. The kit's own `greenfield` plugin **only orchestrates**: it ties the pieces together and adds what none of them provide (Phase 0 orchestrator, adaptive initializer, session starter, preflight).
 
 | Plugin / skill | Purpose | Install |
 |---|---|---|
-| **greenfield** (this kit) | Phase 1 (`/greenfield:initializer`), Phase 2 (`/greenfield:next`), pre-deploy (`/greenfield:preflight`) | `/plugin marketplace add arussolinero-a11y/greenfield-kit` → `/plugin install greenfield@greenfield-kit` |
+| **greenfield** (this kit) | Phase 0 (`/greenfield:discover`), Phase 1 (`/greenfield:initializer`), Phase 2 (`/greenfield:next`), pre-deploy (`/greenfield:preflight`) | `/plugin marketplace add arussolinero-a11y/greenfield-kit` → `/plugin install greenfield@greenfield-kit` |
 | **Superpowers** | Phase 0D (`brainstorming`) and Phase 2 (`writing-plans`, `subagent-driven-development`, TDD) | `/plugin install superpowers@claude-plugins-official` |
 | **product-management** (Anthropic) | Phases 0A, 0B and 3 | `/plugin marketplace add anthropics/knowledge-work-plugins` → `/plugin install product-management@knowledge-work-plugins` |
 | **design** (Anthropic) | Phases 0C and 4 (`/ux-copy`, `/accessibility`, `/critique`) | `/plugin install design@knowledge-work-plugins` |
@@ -188,7 +188,7 @@ This guide relies on plugins and skills from Anthropic and third parties. The ki
 
 ## 5. Phase 0 — Product, UX/UI and spec (the human decides)
 
-Phase 0 has four sub-phases. The **technical spec (0D)** is written last, fed by the others.
+Phase 0 has four sub-phases. The **technical spec (0D)** is written last, fed by the others. `/greenfield:discover` runs them in order (§5.6); the subsections below describe what each stage produces and which tools it uses.
 
 ```
 Will it be sold?
@@ -321,6 +321,19 @@ break, and what "done" means. Then write it to spec.md.
 | Phase 2 (UI) | `frontend-design` + Playwright screenshots | Same |
 | Phase 3 (product) | `/metrics-review`, `/synthesize-research`, `/roadmap-update` | Same |
 | Phase 4 (UX) | `/accessibility` + Impeccable `audit`/`critique` | `/accessibility` + `/critique` |
+
+### 5.6 How to run it: `/greenfield:discover`
+```
+/greenfield:discover                 ← starts, or resumes where you left off
+/greenfield:discover ux              ← jump to one stage: market | product | ux | spec
+/greenfield:discover status          ← show progress
+```
+- **Intake:** asks for the idea in one sentence, whether it will be sold, where it runs (local only or GitHub + CI) and any known constraints.
+- **Runs 0A → gate → 0B → 0C → 0D in order**, with a human checkpoint and a plain-language summary at the end of each stage. Skips 0A for non-commercial projects and uses the lite PRD.
+- **Uses whatever is installed** (`/deep-research`, `product-management`, `design`, Impeccable, Superpowers). If a tool is missing, it does that step itself with the same coverage.
+- **Keeps state** in `docs/product/discovery-log.md` (stages, approvals, decisions), so you can stop and resume in another session.
+- **Bundles** the PRD template and the mandatory UX/UI questions (with variants for conversational products).
+- **Ends** by pointing to `/greenfield:initializer`.
 
 ---
 
@@ -791,7 +804,7 @@ Each anti-pattern comes with its symptom and its antidote. If you are an agent a
 
 | Step | Phase | What she does | What Claude produces | Her decision |
 |---|---|---|---|---|
-| 1 | Setup (§4) | Installs the kit's plugins | — | — |
+| 1 | Setup (§4) | Installs the kit's plugins, then runs `/greenfield:discover` for steps 2–5 | — | — |
 | 2 | 0A | `Use /deep-research to research the market for booking software for wellness studios in Colombia…` (template §5.1) | `docs/product/market-research.md`: 7 alternatives (including WhatsApp + spreadsheets), pricing, gaps (local payments, no-shows), TAM with assumptions, recommendation | **GO**, with the hypothesis "no-shows cost more than the subscription" to validate |
 | 3 | 0B | `/write-spec` for the PRD + `/brainstorm` for positioning | `docs/product/PRD.md`: MVP = bookings + reminders + prepayment; **out**: mobile app, multiple locations. North Star: paid bookings per week | Approves and cuts "coupons" from the MVP |
 | 4 | 0C | `/impeccable init` → answers: users on mobile, "warm, simple, trustworthy", references and anti-references | `docs/design/PRODUCT.md` + `DESIGN.md` (tokens, states, WCAG AA) and booking and payment flows | Approves the visual direction after seeing the proposal |
@@ -841,6 +854,7 @@ Each anti-pattern comes with its symptom and its antidote. If you are an agent a
 | v0.5 | Related official Anthropic practices |
 | v0.6 | Expanded Phase 0: market research, product, UX/UI, spec; scored tools |
 | **v1.0** | Kit setup; `greenfield` plugin (`initializer`, `next`, `preflight`); anti-patterns; pre-deploy checklist; end-to-end example; published in English |
+| v1.1 | `/greenfield:discover`: Phase 0 orchestrator (intake, market research + go/no-go, PRD full/lite, UX/UI questions, spec hand-off) with resumable state |
 
 **Maintenance:**
 - Claude Code tooling changes fast. Review §3, §4 and §15 against the official docs every quarter.

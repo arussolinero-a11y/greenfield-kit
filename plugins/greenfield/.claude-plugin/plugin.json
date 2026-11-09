@@ -1,7 +1,7 @@
 {
   "name": "greenfield",
-  "version": "1.0.0",
-  "description": "Adaptive initializer (Phase 1), per-feature session starter (Phase 2) and pre-deploy checklist for greenfield projects with Claude Code. Orchestrates Superpowers and Anthropic's plugins instead of replacing them.",
+  "version": "1.1.0",
+  "description": "Phase 0 orchestrator, adaptive initializer (Phase 1), per-feature session starter (Phase 2) and pre-deploy checklist for greenfield projects with Claude Code. Orchestrates Superpowers and Anthropic's plugins instead of replacing them.",
   "author": {
     "name": "arussolinero-a11y"
   },

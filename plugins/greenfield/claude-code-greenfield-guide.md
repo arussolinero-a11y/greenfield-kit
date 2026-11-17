@@ -1,10 +1,10 @@
 # Practical Guide: Greenfield Projects with Claude Code
 
-> Following Anthropic's best practices · **v1.4** · 2026-11-17
+> Following Anthropic's best practices · **v1.5** · 2026-11-17
 >
 > **Audience:** people and agents. If you are an agent: sections marked **RULE** are mandatory, decision tables tell you what to do in each context, and templates are meant to be copied as-is.
 >
-> **Status:** v1.4. Ships inside the `greenfield` plugin (`/greenfield:discover`, `/greenfield:initializer`, `/greenfield:build-path`, `/greenfield:next` and `/greenfield:preflight` skills), so the skills can always read it. Version history in §16.
+> **Status:** v1.5. Ships inside the `greenfield` plugin (`/greenfield:discover`, `/greenfield:initializer`, `/greenfield:build-path`, `/greenfield:next` and `/greenfield:preflight` skills), so the skills can always read it. Version history in §16.
 
 ---
 
@@ -537,6 +537,34 @@ Read the spec. You are the initializer session: do NOT implement features.
 4. Show me the profile and the full list. Don't commit until I approve.
 ```
 
+### 6.6 Stack details the initializer must fill in
+The templates are generic; the initializer derives these from the spec and the stack and writes them down, so later sessions don't rediscover them:
+- **Runtime version:** the minimum version goes in the stack's own pin file (`.nvmrc`, `.node-version`, `.python-version`, `.go-version`…; also `engines` if the stack uses it), noted in the profile. `init.sh` reads that pin file, so there's a single source, and fails early with a clear message if the installed version is older. Plans check a tool's runtime requirement before proposing an upgrade.
+- **Secrets files:** every local secrets file this stack uses (not only `.env`; for example `.dev.vars` or `.env.local`) goes in three places: `.gitignore`, the `deny` rules in `.claude/settings.json`, and the existence check in `init.sh`.
+- **Port and health check:** the port the local server really uses, and its health URL. `init.sh` waits for it with a timeout and, if it fails, shows the last lines of the log instead of just "failed".
+- **Formatter:** a formatter config for the stack (or an explicit "no formatter" in `CLAUDE.md`), with its check in the gate (`FORMAT_CHECK` in `gate.sh`). Implementers never reformat files outside their task, and the reviewer flags any file changed outside the task's scope.
+
+### 6.7 Using a person's credential without seeing it
+Some features need one real call with a credential that belongs to a person (an API key, an account token). The agent must use it without reading, printing or storing it:
+1. **Where it lives:** in a file outside the repo, for example `~/.config/<project>/<service>.env`, with one `KEY=value` per line, readable only by the user (`chmod 600`).
+2. **Blocking the agent from reading it:** a `Read(...)` deny rule for that path only blocks Claude's Read tool. `cat`, `head` or `env` in a terminal command would still show it. So use both:
+   - the `deny` rule;
+   - a `PreToolUse` hook on `Bash` that rejects any command mentioning the credential folder, unless it's the approved script that makes the call.
+
+   The `CLAUDE.md` rule (never read, print or store it) covers the rest.
+3. **How it's used:** only the script that makes the call loads it, at run time, by **parsing** the lines, never by sourcing the file (sourcing runs it as shell code, which can mangle values with `$`, spaces or quotes, or execute something):
+   ```bash
+   while IFS='=' read -r key value; do
+     [[ -z "$key" || "$key" == \#* ]] && continue
+     export "$key=$value"
+   done < "$CREDENTIALS_FILE"
+   ```
+   The agent runs the script; it never opens, prints or copies the file.
+4. **How to diagnose without showing it:** check only its shape: present or not, its length, the expected prefix, no spaces or line breaks, not pasted twice. Never print the value or part of it.
+5. **After use:** if it was a one-off, the person revokes or rotates it. Logs and outputs never contain it.
+
+The group plan cites this pattern when a feature needs it (§7.12).
+
 ---
 
 ## 7. Phase 2 — Build (one feature per session, on the build path you choose)
@@ -910,6 +938,11 @@ output visible; commit made and PR opened. Or stop after 15 turns.
 
 ## 10. When the spec changes — `/greenfield:initializer --resync`
 Also use it when the **scope** changes: features moved between releases (for example, cutting the MVP), or a later release promoted to active.
+
+**A new design during the build** (for example, from a Superpowers `brainstorming` session when you change a feature's scope) goes here too. Brainstorming suggests `writing-plans` next, but in a kit project the order is different:
+1. update the spec;
+2. run `--resync`;
+3. plan the group (§7.0) or use `writing-plans` on the `guided` path.
 1. Compares the spec, the PRD roadmap and `feature_list.json`.
 2. **Adds** new features with `passes: false`.
 3. Marks features that no longer apply as `deprecated`. **Never deletes them.**
@@ -1099,7 +1132,8 @@ Each anti-pattern comes with its symptom and its antidote. If you are an agent a
 | v1.1 | Fixes from the first real-world test (#2): the guide ships inside the plugin; the initializer merges existing files instead of overwriting them; mandatory MVP cut and roadmap, with a `release` field in `feature_list.json`; prototype gate in 0C (coverage matrix, reviews, minimum criteria); `private/` folder for sensitive inputs; fresh context per feature and wrap-up before long waits; local-only projects (§7.8) with a local security checklist, and `/goal` blanks; attended deploy steps (§13) |
 | v1.2 | Build paths (§7.0): `lean`, `lean-fast`, `lanes` and `guided`, with shared safety rules, roles and models, and reference numbers from a real-world pilot; new `/greenfield:build-path` assessment skill; severity triage S1–S4 and a bug backlog (§7.9); fix sessions after human review (§7.10); optional build log (§7.11); `/greenfield:next` follows the chosen path |
 | v1.3 | Plans, roles and gates (§7.12): a group plan template (contracts, external constants, measured thresholds, quick probe, human steps outside the gate, tasks that end green, reviewer checklist, coherence pass) and planner/implementer/reviewer agent templates; a single `scripts/gate.sh` with `--affected` and a Stop hook that skips while a subagent works (§6.2d); `feature_list.json` gains the `in_review` status, `requires_human_action` and `built_on_unapproved`; spike closure; saved state and subagent resume |
-| **v1.4** | Phase 0 skill `/greenfield:discover` (one sub-phase per session, `docs/phase0-status.md` hand-off, reopen with ordered cascade, §5.6); language decisions before 0A; optional product/UX benchmark for products that won't be sold (§5.1); prefilled 0C questions, tools-used record and design handoff (§5.3); integration check and builder review loop with a spec checklist (§5.4) |
+| v1.4 | Phase 0 skill `/greenfield:discover` (one sub-phase per session, `docs/phase0-status.md` hand-off, reopen with ordered cascade, §5.6); language decisions before 0A; optional product/UX benchmark for products that won't be sold (§5.1); prefilled 0C questions, tools-used record and design handoff (§5.3); integration check and builder review loop with a spec checklist (§5.4) |
+| **v1.5** | Initializer templates: `init.sh` checks the runtime version, every stack secrets file and the real port, waits for the service with a timeout and shows the log tail on failure; stack details the initializer must fill in (§6.6: runtime pin, secrets files, port, formatter); using a person's credential without seeing it (§6.7); new designs during the build go through `--resync` (§10) |
 
 **Maintenance:**
 - Claude Code tooling changes fast. Review §3, §4 and §15 against the official docs every quarter.

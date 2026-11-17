@@ -4,6 +4,7 @@
 - Install and start: `./init.sh`
 - Build: `<cmd>` · Lint: `<cmd>` · Test: `<cmd>` · E2E: `<cmd>`
 - Gate (before every commit, judged by exit code): `./scripts/gate.sh` (`--affected` during a task)
+- Runtime: <runtime> ≥ <version> · Local port: <port> · Formatter: <tool and config | none>. Never reformat files outside your task.
 
 ## Languages
 <!-- If CLAUDE.md already has a Languages section (written by /greenfield:discover), keep that one and drop this placeholder. -->
@@ -26,6 +27,10 @@
 5. Run it according to its `mode` and the build path. One feature per session; never start a second one in the same session. Every feature gets a fresh reviewer on a different model; triage findings S1–S4 (backlog in docs/backlog.md).
 6. `passes: true` only with the `verify_cmd` output visible. If a person still has to approve or act, the feature is `in_review`. Then update `claude-progress.txt` and end.
 7. Before waiting a long time for a human (review, approval), wrap up first: commit, update the progress log and `feature_list.json`, end the session.
+
+## Changes during the build
+- A new design (for example, from a brainstorming session) updates the spec, then `/greenfield:initializer --resync`, then the group plan; never straight to a plan or to code.
+- A real call with a person's credential follows guide §6.7: the script loads it at run time; never read, print or store it.
 
 ## feature_list.json
 You may only change `passes`, `status`, `built_on_unapproved` and `history`. Never delete features or edit `steps`.

@@ -1,10 +1,10 @@
 # Practical Guide: Greenfield Projects with Claude Code
 
-> Following Anthropic's best practices · **v1.2** · 2026-11-17
+> Following Anthropic's best practices · **v1.3** · 2026-11-17
 >
 > **Audience:** people and agents. If you are an agent: sections marked **RULE** are mandatory, decision tables tell you what to do in each context, and templates are meant to be copied as-is.
 >
-> **Status:** v1.2. Ships inside the `greenfield` plugin (`/greenfield:initializer`, `/greenfield:build-path`, `/greenfield:next` and `/greenfield:preflight` skills), so the skills can always read it. Version history in §16.
+> **Status:** v1.3. Ships inside the `greenfield` plugin (`/greenfield:initializer`, `/greenfield:build-path`, `/greenfield:next` and `/greenfield:preflight` skills), so the skills can always read it. Version history in §16.
 
 ---
 
@@ -401,7 +401,11 @@ Based on Anthropic's *initializer + coding agent* pattern (the *Effective harnes
 Add `"extra_review": ["security"]` to features with `risk: "high"` (payments, auth, personal data): `/security-review` and/or `/code-review` run before merge.
 
 **d) Non-negotiable rules → controls**
-- **Deterministic**, in `.claude/settings.json`: Stop hook running typecheck and tests (`<cmd> 1>&2 || exit 2`), `deny` rules for `.env` and secrets.
+- **Deterministic**, in `scripts/gate.sh` + `.claude/settings.json`:
+  - **One gate script** (typecheck + lint + tests) whose exit code is the verdict. Sessions run it on its own before every commit, never chained in a way that lets a commit through after a failure; `--affected` runs only the related tests during a task.
+  - A **Stop hook** runs it (`gate.sh --hook`) and skips while a subagent is working (marker file `.claude/subagent-active`). The hook only covers the main session, so the coordinator runs the gate itself after each subagent delivery.
+  - `deny` rules for `.env` and secrets.
+- **Steps only a person can do or authorize** (deploy, live migrations, real calls with their credentials, writes to external services) → `requires_human_action` on the feature. They never live inside the gate suite: a separate closing check closes them (§7.12).
 - **Judgment-based**: a line in `CLAUDE.md` + a dedicated verification feature (e.g., an eval).
 
 ### 6.3 Step 3 — Artifacts
@@ -415,7 +419,8 @@ CLAUDE.md              commands, rules, session-start routine (short)
 docs/project-profile.md
 docs/decisions/        ADRs from spikes
 verify/                verification tooling for the profile
-.gitignore             includes .env and private/ (sensitive inputs, §5)
+scripts/gate.sh        the single gate: typecheck + lint + tests (exit code = verdict)
+.gitignore             includes .env, private/ (sensitive inputs, §5) and .claude/subagent-active
 ```
 
 **`feature_list.json` schema**
@@ -440,7 +445,8 @@ verify/                verification tooling for the profile
 **RULES for coding sessions:**
 - They may only change `passes`, `status` and `history`.
 - They never delete or water down `steps`. Anthropic uses JSON instead of Markdown because the model is less likely to rewrite it.
-- `status` can be `pending | in_progress | done | deprecated`.
+- `status` can be `pending | in_progress | in_review | done | deprecated`. `in_review` means built and verified, waiting for a person (`human_review`, or a step in `requires_human_action`).
+- Optional fields: `requires_human_action` (steps only a person can do; `verify_cmd` stays local) and `built_on_unapproved` (dependencies that were still `in_review` when this feature was built with your OK; re-verify when they're approved).
 - `release` (`mvp`, `v2`, `v3`…) says which roadmap release a feature belongs to. Only features of the **active release** (written in `CLAUDE.md`) are in the build path. Moving a feature to a later release is not deprecating it: change `release` and add a `history` note.
 
 ### 6.4 Step 4 — Human checkpoint
@@ -517,7 +523,7 @@ Building is where most of a project's time goes, and no single way of building s
 3. **Review:** one fresh reviewer subagent reads the diff against the plan and the checklist, and reports each finding with severity, file and fix. Triage (§7.9), fix, and re-review only if an S1 or S2 was fixed.
 4. **Close:** `verify_cmd` visible → checkpoint 2 (PR, or local merge per §7.8) → progress log → end the session.
 
-**`lean-fast` setup:** it's a regular feature (category `infra`) added with `--resync` and built once. It's worth it when it will be reused: in the pilot it cost about as much as 6 features, then cut the full end-to-end run from ~25 minutes to under 2 and the fixed cost of each subagent call to about a quarter.
+**`lean-fast` setup:** it's a regular feature (category `infra`) added with `--resync` and built once. It includes copying the plugin's role agents (planner, implementer, reviewer: `skills/next/references/agents/`) into the project's `.claude/agents/`, each with only the tools it needs and its model. It's worth it when it will be reused: in the pilot it cost about as much as 6 features, then cut the full end-to-end run from ~25 minutes to under 2 and the fixed cost of each subagent call to about a quarter.
 
 **`lanes` rules for the coordinator:**
 - Lanes merge into an **integration branch** (`integration/<group>`, created from the main branch), never straight into the main branch.
@@ -717,6 +723,23 @@ To know whether a path works for *your* project, keep `docs/build-log.md` (templ
 - Note the models: a pricier model shouldn't be blamed on the path.
 - `/greenfield:build-path` uses this log when you re-evaluate.
 
+### 7.12 Plans, roles and gates (templates in the plugin)
+The plugin ships the templates every build path uses: `skills/next/references/plan-template.md`, plus `agents/planner.md`, `agents/implementer.md` and `agents/reviewer.md` in the same folder. What they enforce, and why (each rule comes from a real failure in the pilot):
+
+| Rule | Why |
+|---|---|
+| The plan pins **exact contracts** and lists **external constants** with source and date | Every mismatch appeared where the plan left a convention open; prices and model ids written from memory passed tests that used the same wrong numbers |
+| **Thresholds are measured** against approved artifacts before the plan is approved; an optional **quick probe** runs in the scratchpad | Otherwise the build stops halfway to ask what to do when approved work fails the plan's own numbers |
+| **What waits for a person never lives in the gate suite**: a separate closing check (`verify/close-<ID>.sh`) closes it | A red test "until the person acts" blocks commits, merges and the Stop hook |
+| **No task ends red**; a test written early for a later task uses the framework's "todo" marker, naming that task | Planned red tests between tasks make the Stop hook loop |
+| Plans written in parallel get a **coherence pass** | Otherwise they cite each other's contracts before they exist |
+| The coordinator **quotes the plan literally** in briefs, never paraphrases or adds rules | A paraphrase tightened a rule; an added rule contradicted the plan |
+| The implementer **mutates each rule** before delivering, uses **evidence from running the real thing**, stays in scope, **closes background processes and reports once**, and lists **Contracts changed** | Tests that didn't fail when the rule broke; outputs imitated by a script; reformatted files outside the task; reports resent in a loop; later tasks expecting old behavior |
+| The reviewer runs the **full verification first** (twice for end-to-end tests), checks at least one end-to-end test **against the real local backend**, and **regenerates one output** | Single-width runs hid flaky tests; intercepted responses hid what a real user saw; imitated outputs passed |
+| **One scratch subfolder per agent**; each deletes only what it created | A reviewer deleted the coordinator's evidence in a shared folder |
+| **Save state after each feature**; resume a cut-off subagent with `git status`/`git log` and a message, not a new agent | Usage limits cut long sessions mid-feature |
+| A spike stays `in_review` until its ADR is approved, and the ADR is its evidence | There was no defined way to close a spike |
+
 ---
 
 ## 8. Phase 3 — Maintenance and automation
@@ -900,6 +923,8 @@ Each anti-pattern comes with its symptom and its antidote. If you are an agent a
 | 2 | Several features per session | Huge commits, exhausted context | `/greenfield:next` takes only one |
 | 2 | Skipping the reviewer to save cost | Work passes its own checks but hides real gaps, security ones included | One fresh reviewer per feature, always (§7.0) |
 | 2 | Re-reviewing every nitpick | Review becomes the most expensive part | Severity triage; re-review only after S1/S2 fixes (§7.9) |
+| 2 | A test left red "until the person acts", or between tasks | Commits blocked, Stop hook looping, a known-red gate becomes normal | Closing check outside the suite; every task ends green (§7.12) |
+| 2 | Chaining gate commands so a commit runs after a failure | A red commit in history | `scripts/gate.sh` on its own, judged by exit code (§6.2d) |
 | 2 | Moving the implementer to a pricier model "for quality" without measuring | Cost per feature doubles; serious issues are still caught by the reviewer | Measure first (§7.11); keep the reviewer on a different model |
 | 2 | `/goal` before approving the plan | The plan was never reviewed | The goal goes after checkpoint 1 (§7.3) |
 | 2 | `/goal` without a stop clause | It pushes on when Superpowers stopped for a reason | "If you need a decision from me, stop" clause |
@@ -930,8 +955,8 @@ Each anti-pattern comes with its symptom and its antidote. If you are an agent a
 
 **A. Automatable** (Claude runs them and shows the output)
 - [ ] A1 Build, lint, typecheck and tests green (local, plus CI on the latest commit if there's CI)
-- [ ] A2 Release scope complete: every feature of the release being shipped (`release` field) has `passes: true`, none `in_progress`
-- [ ] A3 Human reviews (`human_review`) closed
+- [ ] A2 Release scope complete: every feature of the release being shipped (`release` field) has `passes: true`, none `in_progress` or `in_review`
+- [ ] A3 Human reviews (`human_review`) and human actions (`requires_human_action`) closed
 - [ ] A4 No placeholders (`TODO`, `FIXME`, `[PLACEHOLDER]`, lorem ipsum, project-specific markers)
 - [ ] A5 No secrets in the repo; `.env` ignored; `.env.example` up to date
 - [ ] A6 The app validates environment variables at startup and fails with a clear message
@@ -1020,7 +1045,8 @@ Each anti-pattern comes with its symptom and its antidote. If you are an agent a
 | v0.6 | Expanded Phase 0: market research, product, UX/UI, spec; scored tools |
 | v1.0 | Kit setup; `greenfield` plugin (`initializer`, `next`, `preflight`); anti-patterns; pre-deploy checklist; end-to-end example; published in English |
 | v1.1 | Fixes from the first real-world test (#2): the guide ships inside the plugin; the initializer merges existing files instead of overwriting them; mandatory MVP cut and roadmap, with a `release` field in `feature_list.json`; prototype gate in 0C (coverage matrix, reviews, minimum criteria); `private/` folder for sensitive inputs; fresh context per feature and wrap-up before long waits; local-only projects (§7.8) with a local security checklist, and `/goal` blanks; attended deploy steps (§13) |
-| **v1.2** | Build paths (§7.0): `lean`, `lean-fast`, `lanes` and `guided`, with shared safety rules, roles and models, and reference numbers from a real-world pilot; new `/greenfield:build-path` assessment skill; severity triage S1–S4 and a bug backlog (§7.9); fix sessions after human review (§7.10); optional build log (§7.11); `/greenfield:next` follows the chosen path |
+| v1.2 | Build paths (§7.0): `lean`, `lean-fast`, `lanes` and `guided`, with shared safety rules, roles and models, and reference numbers from a real-world pilot; new `/greenfield:build-path` assessment skill; severity triage S1–S4 and a bug backlog (§7.9); fix sessions after human review (§7.10); optional build log (§7.11); `/greenfield:next` follows the chosen path |
+| **v1.3** | Plans, roles and gates (§7.12): a group plan template (contracts, external constants, measured thresholds, quick probe, human steps outside the gate, tasks that end green, reviewer checklist, coherence pass) and planner/implementer/reviewer agent templates; a single `scripts/gate.sh` with `--affected` and a Stop hook that skips while a subagent works (§6.2d); `feature_list.json` gains the `in_review` status, `requires_human_action` and `built_on_unapproved`; spike closure; saved state and subagent resume |
 
 **Maintenance:**
 - Claude Code tooling changes fast. Review §3, §4 and §15 against the official docs every quarter.

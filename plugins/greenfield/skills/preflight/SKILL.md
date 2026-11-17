@@ -14,8 +14,8 @@ The greenfield guide ships with this plugin: `../../claude-code-greenfield-guide
 | # | Check | How | Blocking |
 |---|---|---|---|
 | A1 | Build, lint, typecheck and tests green | Commands from `CLAUDE.md` + CI status of the latest commit, if there's CI | Yes |
-| A2 | Release scope complete | Every feature whose `release` is the one being shipped has `passes: true`; none `in_progress` | Yes |
-| A3 | Human reviews closed | Every feature with `human_review: true` approved (recorded in the progress log or PR) | Yes |
+| A2 | Release scope complete | Every feature whose `release` is the one being shipped has `passes: true`; none `in_progress` or `in_review` | Yes |
+| A3 | Human reviews and actions closed | Every feature with `human_review: true` approved, and every `requires_human_action` step closed (closing check output, or the person's confirmation in `history`) | Yes |
 | A4 | No placeholders | Search for `TODO`, `FIXME`, `[PLACEHOLDER]`, `lorem ipsum`, `XXX` and project-specific markers | Yes (in production code) |
 | A5 | No secrets in the repo | `.env` in `.gitignore`; search recent history for keys and tokens; `.env.example` exists | Yes |
 | A6 | Environment validation | The app fails fast with a clear message if a variable is missing | Yes |

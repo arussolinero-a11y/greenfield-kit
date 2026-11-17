@@ -52,12 +52,14 @@ Use the templates in `templates/` and adapt them to the spec's stack:
 | `feature_list.json` | `templates/feature_list.example.json` | schema in `references/feature-schema.md`; every feature has a `release` |
 | `claude-progress.txt` | `templates/claude-progress.txt` | first entry = this session |
 | `CLAUDE.md` | `templates/CLAUDE.md` | short; includes the session routine and the active release (`mvp`) |
-| `.claude/settings.json` | `templates/settings.json` | Stop hook with typecheck/test; deny rules for secrets. **If the file exists, merge** (rule 5) |
-| `.gitignore` | — | must include `.env` and `private/` (sensitive inputs, guide §5); merge if it exists |
+| `scripts/gate.sh` | `templates/gate.sh` | the single gate (typecheck + lint + tests; `--affected` for the quick per-task run). Adapt the commands to the stack |
+| `.claude/settings.json` | `templates/settings.json` | Stop hook running `gate.sh --hook` (skipped while a subagent works); deny rules for secrets. **If the file exists, merge** (rule 5) |
+| `.gitignore` | — | must include `.env`, `private/` (sensitive inputs, guide §5) and `.claude/subagent-active`; merge if it exists |
 | `verify/` | — | per the matrix (simulator, e2e, evals…) |
 | `docs/decisions/` | — | empty; spike ADRs go here |
 
-If the project has an interface: add design-system features early (tokens and base components from `DESIGN.md`). For every feature with UI, add a visual-evidence step and an empty/error-state step.
+If the project has an interface: add design-system features early (tokens and base components from `DESIGN.md`). For every feature with UI, add a visual-evidence step, an empty/error-state step, and an end-to-end step against the real local backend (no intercepted responses) that checks what the user sees after each main action.
+If a feature needs something only a person can do or authorize (deploy, a live migration, a real call with their credential, writing to an external service), list it in `requires_human_action` and keep `verify_cmd` local.
 If the PRD defines metrics: add instrumentation features.
 
 ### Step 4 — Human checkpoint

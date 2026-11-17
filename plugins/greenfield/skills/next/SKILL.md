@@ -33,17 +33,20 @@ If the argument is `fixes`, skip sections 2 and 3 and run a **fix session** (gui
 - Read the active release in `CLAUDE.md` (no line there = `mvp`). Features of other releases are out of the build path.
 - If the user passed an ID, use it (check that its `depends_on` pass). If it belongs to another release, say so and ask before going on.
 - Otherwise, take the first one of the active release with `status: "pending"` whose dependencies have `passes: true`.
+- If the only blocker is a dependency still `in_review` (waiting for the person), ask whether to build on it anyway. If they agree, record it in the feature's `built_on_unapproved`. When that dependency is approved or changes, re-run this feature's `verify_cmd` and clear the entry.
+- If a feature has `built_on_unapproved` entries whose dependencies are now approved or changed, re-verify it first (that's this session's regression).
 - If a pending feature of the active release depends on a feature of a later release, it can never be built: don't skip it silently. Tell the user and propose `/greenfield:initializer --resync` to move the dependency into the active release or remove it.
 - **Starting a new group of features?** On the lean paths, that's when no approved plan in `docs/plans/` lists this feature in its `Covers:` line, or when it's the first unfinished feature of its plan. On `guided`, it's when the feature's `category` differs from the last one built. Then check the re-evaluation signals in `../build-path/SKILL.md`, using `docs/build-log.md` if it exists. If one shows up, suggest re-running `/greenfield:build-path` before going on. Also review `docs/backlog.md`: propose any backlog items worth folding into this group's plan.
 - Tell the user in 2–3 plain lines: which feature it is, why it's next and how it will be verified.
 - Set `status: "in_progress"`.
+- Scratch space: each agent (this session included) uses its own subfolder of the session's scratch directory, named after the feature and role (`<F-ID>-implementer/`, `<F-ID>-reviewer/`), and deletes only what it created.
 
 ## 3. Build it — by `mode`, then by build path
 Modes `spike`, `human`, `inline` and `ultracode` are exceptions and work the same on every path:
 
 | `mode` | What to do |
 |---|---|
-| `spike` | Research session: options, trade-offs and a recommendation in `docs/decisions/NNNN-<topic>.md`. **Don't write production code.** End by asking the human for the decision |
+| `spike` | Research session: options, trade-offs and a recommendation in `docs/decisions/NNNN-<topic>.md`. **Don't write production code.** End by asking the human for the decision. Until they decide, the spike is `in_review`; the approved ADR is its evidence (record the decision in `history`, then `done` and `passes: true`). Commit the ADR on a branch and hand it off like any feature |
 | `human` | Prepare the evidence (demo, screenshots, transcripts) and a guide to what to look at. The human approves or requests changes |
 | `inline` | A short plan, approval, then build in this session with a single review at the end |
 | `ultracode` | Plan → approval → ask the user to turn on `/effort ultracode` |
@@ -53,27 +56,34 @@ For `sdd` features (the usual case), follow the build path:
 ### `lean` and `lean-fast`
 1. **Plan check.** Look in `docs/plans/` for a plan with `Status: approved` whose `Covers:` line lists this feature. If there is one, build against it. If not, this session is the **plan session**:
    - choose the group: this feature plus related pending features of the active release (same area or dependency chain, usually 3–8);
-   - write `docs/plans/<group>.md` starting with `Covers: <IDs>`. It includes exact contracts, external constants with source and date, and the reviewer checklist (guide §7.0). Superpowers `writing-plans` is fine if you ask for contracts instead of full code;
+   - write `docs/plans/<group>.md` from `references/plan-template.md` (on `lean-fast`, the project's planner agent can do it). It covers contracts, external constants with source and date, thresholds measured against approved artifacts, steps that wait for a person, tasks that each end green, and the reviewer checklist. Superpowers `writing-plans` is fine if you ask for contracts instead of full code;
+   - if several group plans are being written at once, add the coherence pass (template §9) before approval;
    - summarize it in plain language and ask for approval (**checkpoint 1**). On approval, add `Status: approved <date>`;
    - commit it and end the session. Building starts in a fresh one.
-2. **Build** in this session (or through the project's implementer agent, on `lean-fast`), test first, running the gate after each task. Commit only when the gate is green. Quote the plan; don't add rules it doesn't have.
-3. **Review:** launch one fresh, read-only reviewer subagent on a **different model from the implementer**, set explicitly (the subagent's model option, or a project agent with `model:` in its frontmatter; a plain subagent inherits this session's model and doesn't count). Note which model reviewed; if only one model is available, say so. Give it:
-   - the diff, the plan section and the reviewer checklist;
-   - for features with `extra_review: security` (or high risk), the security part of the checklist;
-   - this instruction: check that each rule has a test that fails when the rule is broken; compare against the plan, not against your prompt; skip style; report each finding with severity (S1–S4), file and fix.
+2. **Build** following `references/agents/implementer.md`:
+   - On `lean`, this session is the implementer.
+   - On `lean-fast`, delegate to the project's implementer agent. Quote the plan's contracts in the brief **literally**: never paraphrase them, never add rules. While it works, create `.claude/subagent-active` so the Stop hook doesn't flag its red tests, and remove the marker when it reports. Then run `./scripts/gate.sh` yourself.
+   - Pass the **Contracts changed** section of each report on to the briefs of later tasks.
+3. **Review:**
+   - First run the full `verify_cmd` (every width or variant). If the feature has end-to-end tests, run it twice in a row.
+   - Then launch one fresh, read-only reviewer on a **different model from the implementer**, set explicitly: the project's reviewer agent, or a subagent with an explicit model option using `references/agents/reviewer.md` as its instructions. A plain subagent inherits this session's model and doesn't count.
+   - Give it the diff, the plan and its checklist (with the security items for `extra_review: security` or high risk).
+   - Note which model reviewed; if only one model is available, say so.
 4. **Triage** (guide §7.9): fix S1 and S2; fix S3 only if cheap; send the rest to `docs/backlog.md` (template `../build-path/templates/backlog.md`). Re-review only if an S1 or S2 was fixed.
 5. Go to section 5.
 
-On `lean-fast`, if the one-time setup feature isn't done yet, build it first: it's in the list as a regular `infra` feature.
+On `lean-fast`, if the one-time setup feature isn't done yet, build it first: it's in the list as a regular `infra` feature. Besides speeding up tests, it copies `references/agents/*.md` into the project's `.claude/agents/` (adjusting models and tools if needed). Agents added mid-session may only show up in a new session.
 
 ### `lanes`
 This session is the **coordinator**. It doesn't write code.
 - Pick two features from independent chains whose plans are approved.
-- Give each lane its own worktree, port and local data, and its own implementer agent.
+- Give each lane its own worktree, port and local data, and its own implementer agent. Pass contracts literally (never paraphrase or add rules) and forward each report's **Contracts changed** to the other lane.
 - One fresh reviewer per feature, on a different model, as in the lean paths.
 - Merge each finished lane into the integration branch `integration/<group>` (created from the main branch; never merge lanes straight into the main branch). Run the full gate and `verify_cmd` yourself after each merge.
 - Hand-off of the integration branch (checkpoint 2): with a remote, push it and open one PR to the main branch; local-only, merge it into the main branch after the user's OK.
 - Follow the coordinator rules in guide §7.0: freeze the integration branch while a lane catches up, quote contracts literally, give each agent its own scratch subfolder.
+- After each feature: update `feature_list.json` and `claude-progress.txt` and commit, so a usage-limit cut never loses state.
+- If a subagent is cut off (network, usage limit): check `git status` and `git log` in its worktree, then resume **the same** subagent with a message saying what's done and what's left, rather than starting a new one without context.
 - If merges get slow, or cost per feature climbs above the reference, say so and suggest going back to `lean-fast`.
 
 ### `guided`
@@ -100,6 +110,7 @@ If the feature has `extra_review`:
 
 ## 5. Before wrapping up
 - Apply `verification-before-completion`: no fresh `verify_cmd` output means it's not done.
+- If the feature has `requires_human_action`, or a step from the plan's "steps that wait for a person": run its closing check (`verify/close-<ID>.sh`) with the output visible, or record the person's confirmation in `history`. Otherwise the feature stays `in_review`.
 - If it has an interface: attach screenshots of the normal, empty, error and mobile states.
 - Hand-off (**checkpoint 2**):
   - With a remote: recommend **"open a PR"** (`finishing-a-development-branch` on `guided`).
@@ -108,6 +119,11 @@ If the feature has `extra_review`:
   - the **Rulings** (decisions made on the user's behalf);
   - findings fixed by severity;
   - what went to the backlog.
-- Update `feature_list.json` (`passes`, `status`) and add an entry at the top of `claude-progress.txt`. If `docs/build-log.md` exists, add the session's row (path, minutes, usage, models, findings).
+- Update `feature_list.json`:
+  - `done` + `passes: true` only with the evidence;
+  - `in_review` while a person's approval or action is pending, with a `history` note saying what it waits for.
+
+  Add an entry at the top of `claude-progress.txt`. If `docs/build-log.md` exists, add the session's row (path, minutes, usage, models, findings).
+- If the session is cut short (usage limit, error), write a provisional progress entry first: what's done, what's committed, what's left.
 - End the session. The next feature goes in a new session.
 - If the feature now waits for a human (review, approval, an external step), say so and end the session now rather than waiting in it.

@@ -35,5 +35,6 @@
 Add `extra_review: ["security"]` to features with `risk: "high"` (and `["code"]` if they're complex).
 
 ## d) Non-negotiable rules → controls
-- **Deterministic** (`.claude/settings.json`): Stop hook running typecheck and tests (`<cmd> 1>&2 || exit 2`); `deny` rules for `.env`, keys and secrets.
+- **Deterministic** (`.claude/settings.json` + `scripts/gate.sh`): one gate script (typecheck + lint + tests, judged by exit code) that sessions run before every commit; a Stop hook that runs it (`gate.sh --hook`), skipped while a subagent works; `deny` rules for `.env`, keys and secrets.
+- **Steps only a person can do** (deploy, live migrations, real calls with their credentials, writes to external services) → `requires_human_action` on the feature; never inside the gate suite.
 - **Judgment-based**: a line in `CLAUDE.md` + a dedicated verification feature (e.g., an eval).

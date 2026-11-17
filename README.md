@@ -30,9 +30,9 @@ Works with or without GitHub: local-only projects are supported (§7.8 of the gu
 plugins/greenfield/
   .claude-plugin/plugin.json
   claude-code-greenfield-guide.md   the guide
-  skills/initializer/   SKILL.md, references/ (matrix, schema), templates/
+  skills/initializer/   SKILL.md, references/ (matrix, schema), templates/ (incl. gate.sh)
   skills/build-path/    SKILL.md, templates/ (build path, backlog, build log)
-  skills/next/          SKILL.md, references/ (local security checklist)
+  skills/next/          SKILL.md, references/ (plan template, planner/implementer/reviewer agents, local security checklist)
   skills/preflight/     SKILL.md
 claude-code-greenfield-guide.md     pointer to the guide's new location
 ```

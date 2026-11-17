@@ -3,6 +3,7 @@
 ## Commands
 - Install and start: `./init.sh`
 - Build: `<cmd>` · Lint: `<cmd>` · Test: `<cmd>` · E2E: `<cmd>`
+- Gate (before every commit, judged by exit code): `./scripts/gate.sh` (`--affected` during a task)
 
 ## Scope
 - Active release: `mvp` (only features with this `release` are built; later releases wait for `--resync`)
@@ -18,11 +19,11 @@
 3. Regression: re-verify 1–2 features with `passes: true`.
 4. Take the first `pending` feature of the active release with no open dependencies and no pending `human_review` (or use `/greenfield:next`).
 5. Run it according to its `mode` and the build path. One feature per session; never start a second one in the same session. Every feature gets a fresh reviewer on a different model; triage findings S1–S4 (backlog in docs/backlog.md).
-6. `passes: true` only with the `verify_cmd` output visible. Then update `claude-progress.txt` and end.
+6. `passes: true` only with the `verify_cmd` output visible. If a person still has to approve or act, the feature is `in_review`. Then update `claude-progress.txt` and end.
 7. Before waiting a long time for a human (review, approval), wrap up first: commit, update the progress log and `feature_list.json`, end the session.
 
 ## feature_list.json
-You may only change `passes`, `status` and `history`. Never delete features or edit `steps`.
+You may only change `passes`, `status`, `built_on_unapproved` and `history`. Never delete features or edit `steps`.
 
 ## Files that never go to git
 - `.env` and `private/` (sensitive inputs). Never copy personal data from `private/` into code, docs or logs.

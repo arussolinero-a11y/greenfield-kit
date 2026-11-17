@@ -12,6 +12,9 @@
     ],
     "verify_cmd": "npm test -- health",
     "human_review": false,
+    "requires_human_action": [
+      "Deploy to the hosting platform (the owner approves it in the session)"
+    ],
     "parallel_safe": false,
     "release": "mvp",
     "status": "pending",

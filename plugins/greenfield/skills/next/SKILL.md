@@ -14,22 +14,27 @@ The greenfield guide ships with this plugin: `../../claude-code-greenfield-guide
 ## 1. Start routine (always)
 1. Read `claude-progress.txt` and `git log --oneline -10`.
 2. Detect the hand-off mode: if `git remote` prints nothing, this is a **local-only** project (guide §7.8). Say so in one line; it changes the hand-off in section 5. A repo with a remote is never local-only: if `gh` isn't installed, push the branch and open the PR on the website or through a GitHub connector.
-3. Read the build path in `docs/build-path.md` (and the `Build path:` line in `CLAUDE.md`). If there is none, recommend running `/greenfield:build-path` first. If the user prefers to go on, use `lean` and say so.
+3. Read the build path in `docs/build-path.md` (and the `Build path:` line in `CLAUDE.md`). If there is none, recommend running `/greenfield:build-path` first. If the user prefers to go on without it:
+   - **project already being built** (some feature has `passes: true`, or `docs/superpowers/plans/` exists; it was set up before build paths existed) → keep `guided`, the flow it was using;
+   - **new project** → use `lean`.
+
+   Say which one you're using, and never switch paths without the user's explicit choice.
 4. Run `./init.sh`. If it fails, **stop**: this session's task becomes fixing the environment.
 5. Regression: re-verify 1–2 features with `passes: true` (the ones most related to the next feature) using their `verify_cmd`. If none has passed yet, the regression is the `init.sh` smoke test; note that in the progress log.
 
-If the argument is `fixes`, skip section 2 and run a **fix session** (guide §7.10):
+If the argument is `fixes`, skip sections 2 and 3 and run a **fix session** (guide §7.10) on a branch `fixes/<YYYY-MM-DD>`:
 1. List what the human reported, in their words, and triage it (§7.9).
 2. Adjust the plan only if a contract changes; otherwise fix directly.
-3. One fresh reviewer per fix; one full gate and `verify_cmd` at the end.
-4. Finish with a short checklist telling the human what to re-check, where and how.
+3. One fresh reviewer per fix, on a different model; one full gate and `verify_cmd` at the end.
+4. Then sections 4 and 5 apply as for a feature: extra reviews, hand-off (PR, or local merge after the user's OK), progress log, end the session.
+5. Finish with a short checklist telling the human what to re-check, where and how.
 
 ## 2. Pick the feature
 - Read the active release in `CLAUDE.md` (no line there = `mvp`). Features of other releases are out of the build path.
 - If the user passed an ID, use it (check that its `depends_on` pass). If it belongs to another release, say so and ask before going on.
 - Otherwise, take the first one of the active release with `status: "pending"` whose dependencies have `passes: true`.
 - If a pending feature of the active release depends on a feature of a later release, it can never be built: don't skip it silently. Tell the user and propose `/greenfield:initializer --resync` to move the dependency into the active release or remove it.
-- **Starting a new group of features?** Check the re-evaluation signals in `../build-path/SKILL.md`, using `docs/build-log.md` if it exists. If one shows up, suggest re-running `/greenfield:build-path` before going on. Also review `docs/backlog.md`: propose any backlog items worth folding into this group's plan.
+- **Starting a new group of features?** On the lean paths, that's when no approved plan in `docs/plans/` lists this feature in its `Covers:` line, or when it's the first unfinished feature of its plan. On `guided`, it's when the feature's `category` differs from the last one built. Then check the re-evaluation signals in `../build-path/SKILL.md`, using `docs/build-log.md` if it exists. If one shows up, suggest re-running `/greenfield:build-path` before going on. Also review `docs/backlog.md`: propose any backlog items worth folding into this group's plan.
 - Tell the user in 2–3 plain lines: which feature it is, why it's next and how it will be verified.
 - Set `status: "in_progress"`.
 
@@ -46,12 +51,13 @@ Modes `spike`, `human`, `inline` and `ultracode` are exceptions and work the sam
 For `sdd` features (the usual case), follow the build path:
 
 ### `lean` and `lean-fast`
-1. **Plan check.** Is there an approved plan for this feature's group in `docs/plans/`? If not, this session is the **plan session**:
-   - write the group plan (exact contracts, external constants with source and date, the reviewer checklist; guide §7.0). Superpowers `writing-plans` is fine if you ask for contracts instead of full code;
-   - summarize it in plain language and ask for approval (**checkpoint 1**);
+1. **Plan check.** Look in `docs/plans/` for a plan with `Status: approved` whose `Covers:` line lists this feature. If there is one, build against it. If not, this session is the **plan session**:
+   - choose the group: this feature plus related pending features of the active release (same area or dependency chain, usually 3–8);
+   - write `docs/plans/<group>.md` starting with `Covers: <IDs>`. It includes exact contracts, external constants with source and date, and the reviewer checklist (guide §7.0). Superpowers `writing-plans` is fine if you ask for contracts instead of full code;
+   - summarize it in plain language and ask for approval (**checkpoint 1**). On approval, add `Status: approved <date>`;
    - commit it and end the session. Building starts in a fresh one.
 2. **Build** in this session (or through the project's implementer agent, on `lean-fast`), test first, running the gate after each task. Commit only when the gate is green. Quote the plan; don't add rules it doesn't have.
-3. **Review:** launch one fresh, read-only reviewer subagent on a **different model from the implementer**. Give it:
+3. **Review:** launch one fresh, read-only reviewer subagent on a **different model from the implementer**, set explicitly (the subagent's model option, or a project agent with `model:` in its frontmatter; a plain subagent inherits this session's model and doesn't count). Note which model reviewed; if only one model is available, say so. Give it:
    - the diff, the plan section and the reviewer checklist;
    - for features with `extra_review: security` (or high risk), the security part of the checklist;
    - this instruction: check that each rule has a test that fails when the rule is broken; compare against the plan, not against your prompt; skip style; report each finding with severity (S1–S4), file and fix.
@@ -65,7 +71,8 @@ This session is the **coordinator**. It doesn't write code.
 - Pick two features from independent chains whose plans are approved.
 - Give each lane its own worktree, port and local data, and its own implementer agent.
 - One fresh reviewer per feature, on a different model, as in the lean paths.
-- Merge each finished lane into the integration branch and run the full gate and `verify_cmd` yourself after each merge.
+- Merge each finished lane into the integration branch `integration/<group>` (created from the main branch; never merge lanes straight into the main branch). Run the full gate and `verify_cmd` yourself after each merge.
+- Hand-off of the integration branch (checkpoint 2): with a remote, push it and open one PR to the main branch; local-only, merge it into the main branch after the user's OK.
 - Follow the coordinator rules in guide §7.0: freeze the integration branch while a lane catches up, quote contracts literally, give each agent its own scratch subfolder.
 - If merges get slow, or cost per feature climbs above the reference, say so and suggest going back to `lean-fast`.
 
@@ -83,7 +90,7 @@ from me, stop and ask me. Or stop after 40 turns.
 ```
 Fill in `<CLOSE>` (depends on `human_review`) and `<HANDOFF>` (depends on the hand-off mode from step 1.2) with the exact texts in the table of guide §7.3, before showing the block. A goal that can never be met keeps the session running for nothing. Remind them to have **auto mode** on so it runs unattended.
 
-Triage the reviewers' findings the same way (§7.9).
+3. When `subagent-driven-development` finishes, add one fresh reviewer on a **different model** for the whole feature diff (its per-task reviewers share this session's model), set explicitly as in the lean paths. Triage all findings the same way (§7.9).
 
 ## 4. Extra reviews
 If the feature has `extra_review`:

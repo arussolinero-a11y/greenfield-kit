@@ -491,6 +491,9 @@ Building is where most of a project's time goes, and no single way of building s
 3. **Tests first:** each new test is seen failing (red) before the code that makes it pass.
 4. **One gate command** (typecheck + lint + tests), judged by its exit code, after every task; nothing is committed while it's red.
 5. **A fresh reviewer for every feature**, read-only, running on a **different model from the implementer**. It's never skipped: in the pilot, work that passed its own checks still had real gaps, security ones included, until the reviewer found them.
+   - **How:** launch the reviewer subagent with an explicit model. For example, implement on Sonnet and review on Opus, using the subagent's model option or a project agent in `.claude/agents/` with `model:` in its frontmatter. A plain subagent inherits the session's model, so it doesn't count.
+   - Record which model reviewed. If only one model is available, say so in the session summary.
+   - On `guided`, Superpowers' per-task reviewers share the session's model, so add one different-model review of the whole feature at the end (§7.2).
 6. **Severity triage** of review findings (§7.9): serious ones are fixed before closing, minor ones go to a backlog.
 7. **Evidence before "done":** the `verify_cmd` output is visible, and `human_review` features wait for your approval.
 8. **Wrap up before a long wait** for a person (§7.6).
@@ -505,14 +508,24 @@ Building is where most of a project's time goes, and no single way of building s
 | **`guided`** | The original flow: Superpowers `writing-plans` → `subagent-driven-development` (an implementer and a reviewer for every task) → `/goal` as a safety net | You want a checkpoint at every step, or a single feature of very high risk. Warning: in the pilot it cost 3.5–6× the `lean` path, with no quality gain |
 
 **How a `lean` feature runs**
-1. **Plan once per group** (its own session): the planner writes `docs/plans/<group>.md` (Superpowers `writing-plans` works if asked for contracts instead of full code). It contains: exact contracts (response codes, formats, names the tests use, shared files), external constants with source and date, and the reviewer's checklist. You approve it (checkpoint 1). In the pilot, every mismatch appeared where the plan hadn't pinned a convention.
+1. **Plan once per group** (its own session). A **group** is a handful of related pending features of the active release, usually 3–8: the same area of the product, or a chain of dependencies. The planner picks them and writes `docs/plans/<group>.md` (Superpowers `writing-plans` works if asked for contracts instead of full code). The plan opens with two lines:
+   - `Covers: F-012, F-013, F-015` (the features in the group);
+   - `Status: approved <date>` (added when you approve).
+
+   It contains: exact contracts (response codes, formats, names the tests use, shared files), external constants with source and date, and the reviewer's checklist. You approve it (checkpoint 1). In the pilot, every mismatch appeared where the plan hadn't pinned a convention. A feature's group is the approved plan whose `Covers:` lists it; a feature with no such plan starts a new group.
 2. **Build each feature in a fresh session:** implement directly with tests first, running the gate after each task.
 3. **Review:** one fresh reviewer subagent reads the diff against the plan and the checklist, and reports each finding with severity, file and fix. Triage (§7.9), fix, and re-review only if an S1 or S2 was fixed.
 4. **Close:** `verify_cmd` visible → checkpoint 2 (PR, or local merge per §7.8) → progress log → end the session.
 
 **`lean-fast` setup:** it's a regular feature (category `infra`) added with `--resync` and built once. It's worth it when it will be reused: in the pilot it cost about as much as 6 features, then cut the full end-to-end run from ~25 minutes to under 2 and the fixed cost of each subagent call to about a quarter.
 
-**`lanes` rules for the coordinator:** freeze the integration branch while a lane catches up, and batch its own commits before or after each merge; quote plan contracts literally in prompts, never paraphrase or add rules; give each agent its own scratch subfolder; the `verify_cmd` that counts is the one the coordinator runs after merging. Go back to `lean-fast` if merges take long or cost per feature climbs above the reference.
+**`lanes` rules for the coordinator:**
+- Lanes merge into an **integration branch** (`integration/<group>`, created from the main branch), never straight into the main branch.
+- Hand-off of the integration branch (checkpoint 2):
+  - with a remote: push it and open **one PR** to the main branch;
+  - local-only: merge it into the main branch after your OK (§7.8).
+- Freeze the integration branch while a lane catches up, and batch the coordinator's own commits before or after each merge; quote plan contracts literally in prompts, never paraphrase or add rules; give each agent its own scratch subfolder; the `verify_cmd` that counts is the one the coordinator runs after merging.
+- Go back to `lean-fast` if merges take long or cost per feature climbs above the reference.
 
 **Roles and models:** the implementer runs on an economical model (for example Sonnet, medium effort); the planner and reviewer run on a more capable one (for example Opus, high effort). The reviewer always uses a model different from the implementer's. Don't move the implementer or the coordinator to a pricier model without measuring: in the pilot it roughly doubled the cost per feature with no measured quality gain.
 
@@ -532,18 +545,6 @@ Building is where most of a project's time goes, and no single way of building s
 
 Modes set per feature in Phase 1 (`spike`, `human`, `inline`, `ultracode`) still apply on any path, as exceptions.
 
-> **In short, one session (`guided` path):**
-> 1. Automatic routine: progress log → `./init.sh` → regression check → next feature.
-> 2. `writing-plans` → **checkpoint 1: you approve the plan** (ask for it in plain language).
-> 3. `/goal` + auto mode, *after* the plan and with a stop clause.
-> 4. `subagent-driven-development`: fresh implementer + reviewer (spec and quality) per task.
-> 5. `verification-before-completion`: nothing is done without fresh evidence.
-> 6. High risk → `/security-review` or `/code-review`.
-> 7. `finishing-a-development-branch` → **checkpoint 2: you choose "open a PR"** (local-only project: merge the feature branch after your OK, §7.8).
-> 8. Wrap-up: `passes: true` + progress log → **end the session**. The next feature starts in a fresh one.
->
-> **`inline` variant** (small, low-risk features): `executing-plans` instead of SDD; cheaper, with a single review at the end.
-
 ### 7.1 Two levels of memory (don't mix them up)
 
 | Level | File | What it holds | Who writes it |
@@ -553,7 +554,22 @@ Modes set per feature in Phase 1 (`spike`, `human`, `inline`, `ultracode`) still
 | **Quality**: findings | `docs/backlog.md` | Review findings below the severity cut (§7.9) | Each build session's wrap-up |
 
 ### 7.2 One session's flow (non-technical user)
-On the lean paths, a session follows the four steps in §7.0 ("How a `lean` feature runs"). The flow below is the `guided` path:
+On the lean paths, a session follows the four steps in §7.0 ("How a `lean` feature runs"). The rest of this section is the `guided` path.
+
+> **In short, one session (`guided` path):**
+> 1. Automatic routine: progress log → `./init.sh` → regression check → next feature.
+> 2. `writing-plans` → **checkpoint 1: you approve the plan** (ask for it in plain language).
+> 3. `/goal` + auto mode, *after* the plan and with a stop clause.
+> 4. `subagent-driven-development`: fresh implementer + reviewer (spec and quality) per task.
+> 5. One fresh reviewer on a **different model** checks the whole feature (rule 5 of §7.0), then triage (§7.9).
+> 6. `verification-before-completion`: nothing is done without fresh evidence.
+> 7. High risk → `/security-review` or `/code-review`.
+> 8. `finishing-a-development-branch` → **checkpoint 2: you choose "open a PR"** (local-only project: merge the feature branch after your OK, §7.8).
+> 9. Wrap-up: `passes: true` + progress log → **end the session**. The next feature starts in a fresh one.
+>
+> **`inline` variant** (small, low-risk features): `executing-plans` instead of SDD; cheaper, with a single review at the end.
+
+In detail:
 
 ```
 1. Start routine (automatic)
@@ -567,15 +583,19 @@ On the lean paths, a session follows the four steps in §7.0 ("How a `lean` feat
    Per task: fresh implementer → tests → commit → reviewer (spec + quality) → fix if it fails
    Stops only in 4 cases: irreversible action, security-sensitive action,
    action outside the worktree (merge, push to a shared branch, publish) or an unworkable plan
-5. verification-before-completion (rule): no "done" without fresh command output
-6. If risk = high: /security-review and/or /code-review
-7. finishing-a-development-branch                       ◄── CHECKPOINT 2: you choose "open a PR"
+5. Feature review: one fresh reviewer on a different model reads the whole feature diff
+   (Superpowers' per-task reviewers run on the session's model) → triage (§7.9)
+6. verification-before-completion (rule): no "done" without fresh command output
+7. If risk = high: /security-review and/or /code-review
+8. finishing-a-development-branch                       ◄── CHECKPOINT 2: you choose "open a PR"
    (local-only project: you approve, then the feature branch is merged locally; §7.8)
-8. Wrap-up: passes: true → update progress log → end the session
+9. Wrap-up: passes: true → update progress log → end the session
 ```
 
 ### 7.3 `/goal` template (after approving the plan)
-Required on the `guided` path. On the lean paths, sessions are short and `/goal` is optional; if you use it, fill in the same blanks and replace the ledger line with "the reviewer approved, with no open S1 or S2".
+Required on the `guided` path. On the lean paths, sessions are short and `/goal` is optional; if you use it, fill in the same blanks and make two replacements:
+- the plan path `docs/superpowers/plans/` becomes `docs/plans/<group>.md`;
+- the ledger line becomes "the reviewer approved, with no open S1 or S2".
 ```
 /goal Feature <ID> is complete per the approved plan in docs/superpowers/plans/:
 all its tasks are closed in the ledger with an approved review (spec and quality);
@@ -822,7 +842,8 @@ Also use it when the **scope** changes: features moved between releases (for exa
 3. Marks features that no longer apply as `deprecated`. **Never deletes them.**
 4. Resets `passes: false` on affected features, and only those.
 5. Updates `release` for features that moved to another release, with a `history` note.
-6. Shows the diff and waits for approval.
+6. Adds process features you approved that don't come from the spec, such as the `lean-fast` setup proposed by `/greenfield:build-path` (category `infra`, active release).
+7. Shows the diff and waits for approval.
 
 ---
 

@@ -22,7 +22,7 @@ Read `feature_list.json`, `CLAUDE.md` (active release), `docs/project-profile.md
 |---|---|---|
 | Features left | `pending` + `in_progress` in the active release | Is a one-time setup worth it? (break-even ≈ 6 features) |
 | Independent chains | From `depends_on` among the remaining features: how many groups don't depend on each other, and the longest chain | Can two features be built at once? |
-| Test-suite time | Time one full run of the project's full test command (E2E included) if it exists; otherwise "not measurable yet" | Is waiting for tests a big part of each session? |
+| Test-suite time | The latest full-run duration on record (`docs/build-log.md`, the progress log, or the last `verify_cmd` / gate output). Run the full suite only if nothing is recorded and it's still small (early in the project); otherwise ask, or say "not known yet" | Is waiting for tests a big part of each session? |
 | Risk | Profile: money, personal data, security, legal | Reviewer checklist; when the guided path is worth it |
 | Hand-off mode | `git remote` empty → local-only (guide §7.8) | Wording of the plan |
 | Plugins in use | How many plugins are enabled for this project | Fixed cost added to every call |
@@ -63,7 +63,7 @@ Ask the person to choose. Don't proceed without an answer.
 ## Step 5 — Record
 1. Write `docs/build-path.md` from `templates/build-path.md`: chosen path, date, measured signals, answers, reasons, roles and models, setup needed, re-evaluation signals.
 2. Update the `Build path:` line in `CLAUDE.md` (add it under "Scope" if missing).
-3. If the path is lean-fast or lanes and the setup isn't done: propose the one-time setup feature (guide §7.0) and offer to add it with `/greenfield:initializer --resync`.
+3. If the path is lean-fast or lanes and the setup isn't done: propose the one-time setup feature (guide §7.0). If the person agrees, add it with `/greenfield:initializer --resync`, which handles process features that don't come from the spec (category `infra`, active release).
 4. Offer the optional build log (`templates/build-log.md` → `docs/build-log.md`) so later re-evaluations use real numbers.
 5. Commit `docs/build-path.md` and `CLAUDE.md` with the person's OK. Tell them the next step: a new session with `/greenfield:next`.
 

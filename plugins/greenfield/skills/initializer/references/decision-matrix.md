@@ -11,14 +11,15 @@
 | Library | Unit tests + property tests |
 | Data pipeline | Fixtures + per-stage counts and invariants |
 
-## b) Size and order
+## b) Release, size and order
+- Every feature gets a `release` from the PRD roadmap. Only the `mvp` release is ordered and built now; later releases are recorded and wait.
 - Each feature fits in **one session**, roughly one reviewable commit. The count scales with the spec (no fixed number).
 - Order:
   1. Walking skeleton (a trivial end-to-end path, deployed).
   2. Spikes for unknowns (their deliverable is an ADR).
   3. Design system (if there's a UI).
   4. Risks: security, payments, integrations.
-  5. Core value (the PRD's MVP scope).
+  5. Core value (the PRD's MVP scope), starting with the core the PRD names.
   6. Metrics instrumentation.
   7. Polish.
 

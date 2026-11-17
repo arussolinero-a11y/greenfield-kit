@@ -20,6 +20,9 @@ Any value that comes from outside the codebase (model ids, prices, quotas, rate 
 |---|---|---|---|---|
 | <name> | <value> | <source> | <YYYY-MM-DD> | <yes until a real call confirms it / no> |
 
+- **Credentials:** if a feature needs a real call with a person's credential, follow guide §6.7 and say which script loads it.
+- **Upgrades:** before proposing a dependency or tool upgrade, check its runtime requirement against the project's pinned version (`CLAUDE.md`, pin file).
+
 ## 4. Measured thresholds
 If the plan sets numeric thresholds (sizes, tolerances, timings, scores):
 - Measure each one against artifacts the human already approved **before** approving this plan. Record the result here.

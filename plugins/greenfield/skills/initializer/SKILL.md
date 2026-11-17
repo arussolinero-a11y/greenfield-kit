@@ -36,6 +36,7 @@ The MVP cut comes before the list (guide §5.2). Never turn the whole PRD or spe
 
 ### Step 1 — Profile → `docs/project-profile.md`
 Answer: project type (web, API, conversational bot, CLI, library, data pipeline, mobile; can be mixed), external interfaces, risks (money, personal data, security, legal), non-deterministic AI behavior, technical unknowns, approximate size, and non-negotiable rules.
+Also record the stack details later sessions need (guide §6.6): runtime and minimum version, local secrets files, local port and health URL, formatter.
 
 ### Step 2 — Apply the decision matrix
 Follow `references/decision-matrix.md` to decide:
@@ -51,13 +52,15 @@ Use the templates in `templates/` and adapt them to the spec's stack:
 | File | Template | Notes |
 |---|---|---|
 | Minimal skeleton | — | build, lint and test green with an empty test |
-| `init.sh` | `templates/init.sh` | installs dependencies, validates `.env`, starts the environment, smoke test |
+| `init.sh` | `templates/init.sh` | checks the runtime version, installs dependencies, checks every secrets file, builds, starts the service, waits for the health check with a timeout. Fill in the stack settings at the top (guide §6.6) |
+| Runtime pin | — | the minimum runtime version in the stack's pin file (`engines`, `.nvmrc`, `.python-version`…) and in `docs/project-profile.md` |
+| Formatter config | — | the stack's formatter config, or "no formatter" stated in `CLAUDE.md` |
 | `feature_list.json` | `templates/feature_list.example.json` | schema in `references/feature-schema.md`; every feature has a `release` |
 | `claude-progress.txt` | `templates/claude-progress.txt` | first entry = this session |
 | `CLAUDE.md` | `templates/CLAUDE.md` | short; includes the session routine and the active release (`mvp`) |
 | `scripts/gate.sh` | `templates/gate.sh` | the single gate (typecheck + lint + tests; `--affected` for the quick per-task run). Adapt the commands to the stack |
-| `.claude/settings.json` | `templates/settings.json` | Stop hook running `gate.sh --hook` (skipped while a subagent works); deny rules for secrets. **If the file exists, merge** (rule 5) |
-| `.gitignore` | — | must include `.env`, `private/` (sensitive inputs, guide §5) and `.claude/subagent-active`; merge if it exists |
+| `.claude/settings.json` | `templates/settings.json` | Stop hook running `gate.sh --hook` (skipped while a subagent works); `deny` rules for secrets: add a `Read(...)` rule for every secrets file of the stack, not only `.env`. **If the file exists, merge** (rule 5) |
+| `.gitignore` | — | must include every local secrets file of the stack (`.env` and others, guide §6.6), `private/` (sensitive inputs, guide §5), `.cache/` and `.claude/subagent-active`; merge if it exists |
 | `verify/` | — | per the matrix (simulator, e2e, evals…) |
 | `docs/decisions/` | — | empty; spike ADRs go here |
 

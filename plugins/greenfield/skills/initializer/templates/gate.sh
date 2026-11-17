@@ -10,14 +10,18 @@ cd "$(dirname "$0")/.."
 TYPECHECK="npm run -s typecheck"                 # ← adapt
 LINT="npm run -s lint"                           # ← adapt
 TEST="npm test --silent"                         # ← adapt
-TEST_AFFECTED="npm test --silent -- --changed"   # ← adapt (or reuse TEST if the runner can't filter)
+TEST_AFFECTED="$TEST"                            # ← adapt: Vitest "npm test --silent -- --changed", Jest "npm test --silent -- --onlyChanged"; keep $TEST if the runner can't filter
 DEPS_READY() { [ -d node_modules ]; }            # ← adapt (venv, vendor…)
 
+MARKER_MAX_MIN=120                               # a marker older than this is treated as left over
 MODE="${1:-full}"
 
 if [ "$MODE" = "--hook" ] && [ -f .claude/subagent-active ]; then
-  echo "gate: skipped — a subagent is working (.claude/subagent-active). The coordinator runs the gate after its delivery." >&2
-  exit 0
+  if [ -n "$(find .claude/subagent-active -mmin -"$MARKER_MAX_MIN" 2>/dev/null)" ]; then
+    echo "gate: skipped — a subagent is working (.claude/subagent-active). The coordinator runs the gate after its delivery." >&2
+    exit 0
+  fi
+  echo "gate: .claude/subagent-active is older than $MARKER_MAX_MIN min — treating it as left over and running the gate. Delete it if no subagent is working." >&2
 fi
 
 if ! DEPS_READY; then

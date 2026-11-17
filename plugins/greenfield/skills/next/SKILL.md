@@ -20,6 +20,8 @@ The greenfield guide ships with this plugin: `../../claude-code-greenfield-guide
 
    Say which one you're using, and never switch paths without the user's explicit choice.
 4. Run `./init.sh`. If it fails, **stop**: this session's task becomes fixing the environment.
+   - No subagent is working at the start of a session: delete a leftover `.claude/subagent-active` if there is one.
+   - If `scripts/gate.sh` doesn't exist (the project was set up before v1.3), say so and propose `/greenfield:initializer --resync` to add it and update the Stop hook. Until then, run the build, lint and test commands from `CLAUDE.md` as the gate.
 5. Regression: re-verify 1–2 features with `passes: true` (the ones most related to the next feature) using their `verify_cmd`. If none has passed yet, the regression is the `init.sh` smoke test; note that in the progress log.
 
 If the argument is `fixes`, skip sections 2 and 3 and run a **fix session** (guide §7.10) on a branch `fixes/<YYYY-MM-DD>`:
@@ -33,7 +35,7 @@ If the argument is `fixes`, skip sections 2 and 3 and run a **fix session** (gui
 - Read the active release in `CLAUDE.md` (no line there = `mvp`). Features of other releases are out of the build path.
 - If the user passed an ID, use it (check that its `depends_on` pass). If it belongs to another release, say so and ask before going on.
 - Otherwise, take the first one of the active release with `status: "pending"` whose dependencies have `passes: true`.
-- If the only blocker is a dependency still `in_review` (waiting for the person), ask whether to build on it anyway. If they agree, record it in the feature's `built_on_unapproved`. When that dependency is approved or changes, re-run this feature's `verify_cmd` and clear the entry.
+- If the only blocker is a dependency still `in_review` (waiting for the person), ask whether to build on it anyway. If they agree, record it in the feature's `built_on_unapproved`. The feature can't go past `in_review` while that list isn't empty. When a dependency is approved or changes, re-run this feature's `verify_cmd` and clear the entry; only then can it be `done`.
 - If a feature has `built_on_unapproved` entries whose dependencies are now approved or changed, re-verify it first (that's this session's regression).
 - If a pending feature of the active release depends on a feature of a later release, it can never be built: don't skip it silently. Tell the user and propose `/greenfield:initializer --resync` to move the dependency into the active release or remove it.
 - **Starting a new group of features?** On the lean paths, that's when no approved plan in `docs/plans/` lists this feature in its `Covers:` line, or when it's the first unfinished feature of its plan. On `guided`, it's when the feature's `category` differs from the last one built. Then check the re-evaluation signals in `../build-path/SKILL.md`, using `docs/build-log.md` if it exists. If one shows up, suggest re-running `/greenfield:build-path` before going on. Also review `docs/backlog.md`: propose any backlog items worth folding into this group's plan.
@@ -47,7 +49,7 @@ Modes `spike`, `human`, `inline` and `ultracode` are exceptions and work the sam
 | `mode` | What to do |
 |---|---|
 | `spike` | Research session: options, trade-offs and a recommendation in `docs/decisions/NNNN-<topic>.md`. **Don't write production code.** End by asking the human for the decision. Until they decide, the spike is `in_review`; the approved ADR is its evidence (record the decision in `history`, then `done` and `passes: true`). Commit the ADR on a branch and hand it off like any feature |
-| `human` | Prepare the evidence (demo, screenshots, transcripts) and a guide to what to look at. The human approves or requests changes |
+| `human` | Prepare the evidence (demo, screenshots, transcripts) and a guide to what to look at. Set `status: "in_review"` until the human approves (then `done` and `passes: true`) or requests changes |
 | `inline` | A short plan, approval, then build in this session with a single review at the end |
 | `ultracode` | Plan → approval → ask the user to turn on `/effort ultracode` |
 
@@ -66,8 +68,8 @@ For `sdd` features (the usual case), follow the build path:
    - Pass the **Contracts changed** section of each report on to the briefs of later tasks.
 3. **Review:**
    - First run the full `verify_cmd` (every width or variant). If the feature has end-to-end tests, run it twice in a row.
-   - Then launch one fresh, read-only reviewer on a **different model from the implementer**, set explicitly: the project's reviewer agent, or a subagent with an explicit model option using `references/agents/reviewer.md` as its instructions. A plain subagent inherits this session's model and doesn't count.
-   - Give it the diff, the plan and its checklist (with the security items for `extra_review: security` or high risk).
+   - Then launch one fresh, read-only reviewer on a **different model from the implementer**, set explicitly: the project's reviewer agent, or a subagent with an explicit model option using `references/agents/reviewer.md` as its instructions. A plain subagent inherits this session's model and doesn't count. The template's `model:` is only a default: if this session implemented on that same model, choose another one for the reviewer.
+   - Give it the diff, the plan and its checklist (with the security items for `extra_review: security` or high risk), plus the `verify_cmd` output you just recorded, so it doesn't have to repeat the full runs.
    - Note which model reviewed; if only one model is available, say so.
 4. **Triage** (guide §7.9): fix S1 and S2; fix S3 only if cheap; send the rest to `docs/backlog.md` (template `../build-path/templates/backlog.md`). Re-review only if an S1 or S2 was fixed.
 5. Go to section 5.
@@ -100,6 +102,7 @@ from me, stop and ask me. Or stop after 40 turns.
 ```
 Fill in `<CLOSE>` (depends on `human_review`) and `<HANDOFF>` (depends on the hand-off mode from step 1.2) with the exact texts in the table of guide §7.3, before showing the block. A goal that can never be met keeps the session running for nothing. Remind them to have **auto mode** on so it runs unattended.
 
+   While `subagent-driven-development` runs, keep `.claude/subagent-active` in place: its implementers write failing tests in this same working tree, and the Stop hook would flag them. Remove the marker as soon as it finishes, then run `./scripts/gate.sh`.
 3. When `subagent-driven-development` finishes, add one fresh reviewer on a **different model** for the whole feature diff (its per-task reviewers share this session's model), set explicitly as in the lean paths. Triage all findings the same way (§7.9).
 
 ## 4. Extra reviews

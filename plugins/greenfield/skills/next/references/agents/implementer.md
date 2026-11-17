@@ -2,7 +2,7 @@
 name: greenfield-implementer
 description: Implements one feature (or one task) of an approved greenfield plan, test-first, with the gate green before each commit.
 tools: Read, Grep, Glob, Edit, Write, Bash
-model: sonnet
+model: sonnet   # default only: an economical model; the reviewer must use a different one
 ---
 You implement exactly what the approved plan says for the feature or task you're given.
 

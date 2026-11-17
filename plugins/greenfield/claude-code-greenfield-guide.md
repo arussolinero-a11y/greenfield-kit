@@ -403,7 +403,8 @@ Add `"extra_review": ["security"]` to features with `risk: "high"` (payments, au
 **d) Non-negotiable rules → controls**
 - **Deterministic**, in `scripts/gate.sh` + `.claude/settings.json`:
   - **One gate script** (typecheck + lint + tests) whose exit code is the verdict. Sessions run it on its own before every commit, never chained in a way that lets a commit through after a failure; `--affected` runs only the related tests during a task.
-  - A **Stop hook** runs it (`gate.sh --hook`) and skips while a subagent is working (marker file `.claude/subagent-active`). The hook only covers the main session, so the coordinator runs the gate itself after each subagent delivery.
+  - A **Stop hook** runs it (`gate.sh --hook`) and skips while a subagent is working: marker file `.claude/subagent-active`, created while subagents work in the same tree and removed when they report. A marker older than two hours is treated as a leftover, and each session deletes one at its start. The hook only covers the main session, so the coordinator runs the gate itself after each subagent delivery.
+  - Projects set up before v1.3 get the script and the new hook with `/greenfield:initializer --resync`.
   - `deny` rules for `.env` and secrets.
 - **Steps only a person can do or authorize** (deploy, live migrations, real calls with their credentials, writes to external services) → `requires_human_action` on the feature. They never live inside the gate suite: a separate closing check closes them (§7.12).
 - **Judgment-based**: a line in `CLAUDE.md` + a dedicated verification feature (e.g., an eval).
@@ -446,7 +447,7 @@ scripts/gate.sh        the single gate: typecheck + lint + tests (exit code = ve
 - They may only change `passes`, `status` and `history`.
 - They never delete or water down `steps`. Anthropic uses JSON instead of Markdown because the model is less likely to rewrite it.
 - `status` can be `pending | in_progress | in_review | done | deprecated`. `in_review` means built and verified, waiting for a person (`human_review`, or a step in `requires_human_action`).
-- Optional fields: `requires_human_action` (steps only a person can do; `verify_cmd` stays local) and `built_on_unapproved` (dependencies that were still `in_review` when this feature was built with your OK; re-verify when they're approved).
+- Optional fields: `requires_human_action` (steps only a person can do; `verify_cmd` stays local) and `built_on_unapproved` (dependencies that were still `in_review` when this feature was built with your OK). While `built_on_unapproved` isn't empty, the feature stays `in_review`; re-verify it when those dependencies are approved.
 - `release` (`mvp`, `v2`, `v3`…) says which roadmap release a feature belongs to. Only features of the **active release** (written in `CLAUDE.md`) are in the build path. Moving a feature to a later release is not deprecating it: change `release` and add a `history` note.
 
 ### 6.4 Step 4 — Human checkpoint
@@ -523,7 +524,7 @@ Building is where most of a project's time goes, and no single way of building s
 3. **Review:** one fresh reviewer subagent reads the diff against the plan and the checklist, and reports each finding with severity, file and fix. Triage (§7.9), fix, and re-review only if an S1 or S2 was fixed.
 4. **Close:** `verify_cmd` visible → checkpoint 2 (PR, or local merge per §7.8) → progress log → end the session.
 
-**`lean-fast` setup:** it's a regular feature (category `infra`) added with `--resync` and built once. It includes copying the plugin's role agents (planner, implementer, reviewer: `skills/next/references/agents/`) into the project's `.claude/agents/`, each with only the tools it needs and its model. It's worth it when it will be reused: in the pilot it cost about as much as 6 features, then cut the full end-to-end run from ~25 minutes to under 2 and the fixed cost of each subagent call to about a quarter.
+**`lean-fast` setup:** it's a regular feature (category `infra`) added with `--resync` and built once. It includes copying the plugin's role agents (planner, implementer, reviewer: `skills/next/references/agents/`) into the project's `.claude/agents/`, each with only the tools it needs. Set each agent's model to one your plan includes, with the reviewer always on a different model from the implementer. It's worth it when it will be reused: in the pilot it cost about as much as 6 features, then cut the full end-to-end run from ~25 minutes to under 2 and the fixed cost of each subagent call to about a quarter.
 
 **`lanes` rules for the coordinator:**
 - Lanes merge into an **integration branch** (`integration/<group>`, created from the main branch), never straight into the main branch.
@@ -615,7 +616,7 @@ Fill in the two blanks; a goal that can never be met keeps the session running f
 | Blank | Use this when… | Text |
 |---|---|---|
 | `<CLOSE>` | the feature has `human_review: false` | `passes: true in feature_list.json` |
-| `<CLOSE>` | the feature has `human_review: true` | `evidence for my review is ready and listed; passes stays false until I approve` |
+| `<CLOSE>` | the feature has `human_review: true` | `evidence for my review is ready and listed; status in_review, passes stays false until I approve` |
 | `<HANDOFF>` | the repo has a remote (GitHub or similar) | `PR opened` |
 | `<HANDOFF>` | local-only repo (§7.8) | `all work committed on the branch feature/<ID>, ready for me to approve the merge` |
 
@@ -724,21 +725,17 @@ To know whether a path works for *your* project, keep `docs/build-log.md` (templ
 - `/greenfield:build-path` uses this log when you re-evaluate.
 
 ### 7.12 Plans, roles and gates (templates in the plugin)
-The plugin ships the templates every build path uses: `skills/next/references/plan-template.md`, plus `agents/planner.md`, `agents/implementer.md` and `agents/reviewer.md` in the same folder. What they enforce, and why (each rule comes from a real failure in the pilot):
-
-| Rule | Why |
-|---|---|
-| The plan pins **exact contracts** and lists **external constants** with source and date | Every mismatch appeared where the plan left a convention open; prices and model ids written from memory passed tests that used the same wrong numbers |
-| **Thresholds are measured** against approved artifacts before the plan is approved; an optional **quick probe** runs in the scratchpad | Otherwise the build stops halfway to ask what to do when approved work fails the plan's own numbers |
-| **What waits for a person never lives in the gate suite**: a separate closing check (`verify/close-<ID>.sh`) closes it | A red test "until the person acts" blocks commits, merges and the Stop hook |
-| **No task ends red**; a test written early for a later task uses the framework's "todo" marker, naming that task | Planned red tests between tasks make the Stop hook loop |
-| Plans written in parallel get a **coherence pass** | Otherwise they cite each other's contracts before they exist |
-| The coordinator **quotes the plan literally** in briefs, never paraphrases or adds rules | A paraphrase tightened a rule; an added rule contradicted the plan |
-| The implementer **mutates each rule** before delivering, uses **evidence from running the real thing**, stays in scope, **closes background processes and reports once**, and lists **Contracts changed** | Tests that didn't fail when the rule broke; outputs imitated by a script; reformatted files outside the task; reports resent in a loop; later tasks expecting old behavior |
-| The reviewer runs the **full verification first** (twice for end-to-end tests), checks at least one end-to-end test **against the real local backend**, and **regenerates one output** | Single-width runs hid flaky tests; intercepted responses hid what a real user saw; imitated outputs passed |
-| **One scratch subfolder per agent**; each deletes only what it created | A reviewer deleted the coordinator's evidence in a shared folder |
-| **Save state after each feature**; resume a cut-off subagent with `git status`/`git log` and a message, not a new agent | Usage limits cut long sessions mid-feature |
-| A spike stays `in_review` until its ADR is approved, and the ADR is its evidence | There was no defined way to close a spike |
+The plugin ships the templates every build path uses: `skills/next/references/plan-template.md`, plus `agents/planner.md`, `agents/implementer.md` and `agents/reviewer.md` in the same folder. **The templates are the rules**; when you change a rule, change it there. This list only explains why each kind of rule exists. Each one comes from a real failure in the pilot:
+- **Plans pin exact contracts and external constants** (with source and date). Mismatches appeared exactly where a convention was left open, and prices or model ids written from memory passed tests that used the same wrong numbers.
+- **Plans measure thresholds before approval**, with an optional quick probe. Otherwise the build stops halfway when approved work fails the plan's own numbers.
+- **Plans keep what waits for a person outside the gate suite, and no task ends red.** Red tests "until the person acts", or between tasks, blocked commits and made the Stop hook loop.
+- **Plans written in parallel get a coherence pass.** Otherwise they cite each other's contracts before they exist.
+- **Briefs quote the plan literally.** A paraphrase tightened a rule; an added rule contradicted the plan.
+- **The implementer** proves each rule with a mutation, produces evidence by running the real thing, stays in scope, closes its background processes, reports once, and lists what contracts it changed. Each of these failed at least once.
+- **The reviewer** checks the full verification and at least one end-to-end test without mocked responses, and regenerates one output. Single-width runs hid flaky tests, and mocked responses hid what users saw.
+- **Every agent has its own scratch subfolder.** A reviewer deleted the coordinator's evidence in a shared one.
+- **State is saved after each feature, and a cut-off subagent is resumed rather than replaced.** Usage limits cut long sessions mid-feature.
+- **A spike stays `in_review` until its ADR is approved.** There was no defined way to close one.
 
 ---
 

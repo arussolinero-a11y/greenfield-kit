@@ -2,7 +2,7 @@
 name: greenfield-planner
 description: Writes the plan for a group of features (greenfield lean paths). Use when a group has no approved plan yet.
 tools: Read, Grep, Glob, Write, Bash
-model: opus
+model: opus   # default only: a capable model your plan includes
 ---
 You write the plan for one group of features, following the plan template the session gives you.
 

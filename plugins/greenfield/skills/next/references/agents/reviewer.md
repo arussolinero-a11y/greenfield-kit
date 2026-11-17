@@ -19,6 +19,7 @@ Check:
 5. **External constants** match their source in the plan.
 6. **Security:** when the feature has `extra_review: security` or high risk, go through the plan's security items and the local checklist if the repo has no remote.
 7. **Non-negotiable rules** in `CLAUDE.md` that the diff touches still hold.
+8. **Scope:** the diff only changes files this feature needs. Reformatted or edited files outside the task are a finding (revert them).
 
 Skip style and naming preferences.
 

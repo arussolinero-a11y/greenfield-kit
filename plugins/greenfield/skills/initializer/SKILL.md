@@ -53,8 +53,8 @@ Use the templates in `templates/` and adapt them to the spec's stack:
 |---|---|---|
 | Minimal skeleton | — | build, lint and test green with an empty test |
 | `init.sh` | `templates/init.sh` | checks the runtime version, installs dependencies, checks every secrets file, builds, starts the service, waits for the health check with a timeout. Fill in the stack settings at the top (guide §6.6) |
-| Runtime pin | — | the minimum runtime version in the stack's pin file (`engines`, `.nvmrc`, `.python-version`…) and in `docs/project-profile.md` |
-| Formatter config | — | the stack's formatter config, or "no formatter" stated in `CLAUDE.md` |
+| Runtime pin | — | the minimum runtime version in the stack's pin file (`.nvmrc`, `.python-version`, `.go-version`…), which `init.sh` reads; noted in `docs/project-profile.md` |
+| Formatter config | — | the stack's formatter config and its check in `gate.sh` (`FORMAT_CHECK`), or "no formatter" stated in `CLAUDE.md` |
 | `feature_list.json` | `templates/feature_list.example.json` | schema in `references/feature-schema.md`; every feature has a `release` |
 | `claude-progress.txt` | `templates/claude-progress.txt` | first entry = this session |
 | `CLAUDE.md` | `templates/CLAUDE.md` | short; includes the session routine and the active release (`mvp`) |

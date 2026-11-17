@@ -539,17 +539,29 @@ Read the spec. You are the initializer session: do NOT implement features.
 
 ### 6.6 Stack details the initializer must fill in
 The templates are generic; the initializer derives these from the spec and the stack and writes them down, so later sessions don't rediscover them:
-- **Runtime version:** the minimum version goes in the profile, in the stack's own pin file (`engines`, `.nvmrc`, `.python-version`…) and in `init.sh`, which fails early with a clear message if the installed version is older. Plans check a tool's runtime requirement before proposing an upgrade.
+- **Runtime version:** the minimum version goes in the stack's own pin file (`.nvmrc`, `.node-version`, `.python-version`, `.go-version`…; also `engines` if the stack uses it), noted in the profile. `init.sh` reads that pin file, so there's a single source, and fails early with a clear message if the installed version is older. Plans check a tool's runtime requirement before proposing an upgrade.
 - **Secrets files:** every local secrets file this stack uses (not only `.env`; for example `.dev.vars` or `.env.local`) goes in three places: `.gitignore`, the `deny` rules in `.claude/settings.json`, and the existence check in `init.sh`.
 - **Port and health check:** the port the local server really uses, and its health URL. `init.sh` waits for it with a timeout and, if it fails, shows the last lines of the log instead of just "failed".
-- **Formatter:** a formatter config for the stack (or an explicit "no formatter" in `CLAUDE.md`). Implementers never reformat files outside their task.
+- **Formatter:** a formatter config for the stack (or an explicit "no formatter" in `CLAUDE.md`), with its check in the gate (`FORMAT_CHECK` in `gate.sh`). Implementers never reformat files outside their task, and the reviewer flags any file changed outside the task's scope.
 
 ### 6.7 Using a person's credential without seeing it
 Some features need one real call with a credential that belongs to a person (an API key, an account token). The agent must use it without reading, printing or storing it:
-1. **Where it lives:** in a file outside the repo, for example `~/.config/<project>/<service>.env`, readable only by the user (`chmod 600`). Add a `deny` rule for that path in `.claude/settings.json`.
-2. **How it's used:** only the script that makes the call loads it, at run time, inside the script (`set -a; . <file>; set +a`). The agent runs the script; it never opens, prints or copies the file.
-3. **How to diagnose without showing it:** check only its shape: present or not, its length, the expected prefix, no spaces or line breaks, not pasted twice. Never print the value or part of it.
-4. **After use:** if it was a one-off, the person revokes or rotates it. Logs and outputs never contain it.
+1. **Where it lives:** in a file outside the repo, for example `~/.config/<project>/<service>.env`, with one `KEY=value` per line, readable only by the user (`chmod 600`).
+2. **Blocking the agent from reading it:** a `Read(...)` deny rule for that path only blocks Claude's Read tool. `cat`, `head` or `env` in a terminal command would still show it. So use both:
+   - the `deny` rule;
+   - a `PreToolUse` hook on `Bash` that rejects any command mentioning the credential folder, unless it's the approved script that makes the call.
+
+   The `CLAUDE.md` rule (never read, print or store it) covers the rest.
+3. **How it's used:** only the script that makes the call loads it, at run time, by **parsing** the lines, never by sourcing the file (sourcing runs it as shell code, which can mangle values with `$`, spaces or quotes, or execute something):
+   ```bash
+   while IFS='=' read -r key value; do
+     [[ -z "$key" || "$key" == \#* ]] && continue
+     export "$key=$value"
+   done < "$CREDENTIALS_FILE"
+   ```
+   The agent runs the script; it never opens, prints or copies the file.
+4. **How to diagnose without showing it:** check only its shape: present or not, its length, the expected prefix, no spaces or line breaks, not pasted twice. Never print the value or part of it.
+5. **After use:** if it was a one-off, the person revokes or rotates it. Logs and outputs never contain it.
 
 The group plan cites this pattern when a feature needs it (§7.12).
 

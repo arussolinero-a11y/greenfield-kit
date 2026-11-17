@@ -1,10 +1,10 @@
 # Practical Guide: Greenfield Projects with Claude Code
 
-> Following Anthropic's best practices · **v1.1** · 2026-11-17
+> Following Anthropic's best practices · **v1.2** · 2026-11-17
 >
 > **Audience:** people and agents. If you are an agent: sections marked **RULE** are mandatory, decision tables tell you what to do in each context, and templates are meant to be copied as-is.
 >
-> **Status:** v1.1. Ships inside the `greenfield` plugin (`/greenfield:initializer`, `/greenfield:next` and `/greenfield:preflight` skills), so the skills can always read it. Version history in §16.
+> **Status:** v1.2. Ships inside the `greenfield` plugin (`/greenfield:initializer`, `/greenfield:build-path`, `/greenfield:next` and `/greenfield:preflight` skills), so the skills can always read it. Version history in §16.
 
 ---
 
@@ -12,7 +12,7 @@
 
 1. **Phase 0 — Product, UX/UI and spec:** (0A) market research + go/no-go if the product will be sold → (0B) product PRD → (0C) UX/UI, **always** → (0D) technical spec with Superpowers `brainstorming`. The human decides.
 2. **Phase 1 — Adaptive initializer:** a session that **builds no features**. It reads the spec, profiles the project and generates the project's "memory" (`feature_list.json`, `init.sh`, progress log, `CLAUDE.md`, hooks, verification tooling). The human approves the list.
-3. **Phase 2 — Build:** one feature per session with Superpowers: `writing-plans` (you approve the plan) → `subagent-driven-development` (each task gets an implementer and a reviewer) → `finishing-a-development-branch` (a PR, or in a local-only project a local merge after your OK, §7.8). `/goal` acts as a safety net so the session doesn't stop halfway. Each feature's mode (`sdd`, `inline`, `ultracode`, `spike`, `human`) was set in Phase 1.
+3. **Phase 2 — Build:** first `/greenfield:build-path` recommends how to build: `lean` (the usual start), `lean-fast`, `lanes` or `guided`. You choose (§7.0). Then one feature per fresh session: you approve the plan → it's built test-first → a fresh reviewer on a different model checks it, with severity triage → a PR, or in a local-only project a local merge after your OK (§7.8). Each feature's mode (`sdd`, `inline`, `ultracode`, `spike`, `human`) was set in Phase 1.
 4. **Phase 3 — Maintenance:** `/loop` to watch something during the session; cloud tasks for daily jobs and event-triggered jobs.
 5. **Phase 4 — Audits and large-scale changes:** ultracode once there is code: security audit, test coverage, pre-production review, migrations. Findings go back into `feature_list.json`.
 6. **When the spec changes:** `/greenfield:initializer --resync` adds and deprecates features; it never deletes.
@@ -171,7 +171,7 @@ This guide relies on plugins and skills from Anthropic and third parties. The ki
 
 | Plugin / skill | Purpose | Install |
 |---|---|---|
-| **greenfield** (this kit) | Phase 1 (`/greenfield:initializer`), Phase 2 (`/greenfield:next`), pre-deploy (`/greenfield:preflight`) | `/plugin marketplace add arussolinero-a11y/greenfield-kit` → `/plugin install greenfield@greenfield-kit` |
+| **greenfield** (this kit) | Phase 1 (`/greenfield:initializer`), Phase 2 (`/greenfield:build-path`, `/greenfield:next`), pre-deploy (`/greenfield:preflight`) | `/plugin marketplace add arussolinero-a11y/greenfield-kit` → `/plugin install greenfield@greenfield-kit` |
 | **Superpowers** | Phase 0D (`brainstorming`) and Phase 2 (`writing-plans`, `subagent-driven-development`, TDD) | `/plugin install superpowers@claude-plugins-official` |
 | **product-management** (Anthropic) | Phases 0A, 0B and 3 | `/plugin marketplace add anthropics/knowledge-work-plugins` → `/plugin install product-management@knowledge-work-plugins` |
 | **design** (Anthropic) | Phases 0C and 4 (`/ux-copy`, `/accessibility`, `/critique`) | `/plugin install design@knowledge-work-plugins` |
@@ -392,7 +392,7 @@ Based on Anthropic's *initializer + coding agent* pattern (the *Effective harnes
 
 | `mode` | When | How (details in §7) |
 |---|---|---|
-| `sdd` (default) | Any feature with binary verification | Superpowers `writing-plans` → `subagent-driven-development` (implementer + reviewer per task) → PR, with `/goal` as a safety net |
+| `sdd` (default) | Any feature with binary verification | Built on the chosen build path (§7.0): `lean` paths → group plan, direct implementation, one fresh reviewer; `guided` → `writing-plans` → `subagent-driven-development` (implementer + reviewer per task), with `/goal` as a safety net |
 | `inline` | Small and low-risk (copy, config, minor tweak) | `writing-plans` → `executing-plans` (single review at the end; cheaper) |
 | `ultracode` | Broad and mechanical (one pattern across many files, mass test coverage) | `writing-plans` → `/goal` with ultracode on |
 | `spike` | Technical unknown | Regular session → ADR in `docs/decisions/` → the human decides |
@@ -479,11 +479,60 @@ Read the spec. You are the initializer session: do NOT implement features.
 
 ---
 
-## 7. Phase 2 — Build (one feature per session, with Superpowers)
+## 7. Phase 2 — Build (one feature per session, on the build path you choose)
 
-**Chosen option (90/100):** Superpowers `writing-plans` → `subagent-driven-development` → `finishing-a-development-branch`, inside the Phase 1 framework (`feature_list.json` + progress log) and with `/goal` as a safety net. Comparison with the alternatives in §7.7.
+Building is where most of a project's time goes, and no single way of building suits every project. Phase 2 therefore offers **four build paths** that share the same safety rules. `/greenfield:build-path` measures the project, asks you 4 plain questions and recommends one; **you choose**, and you can switch later. Start with §7.0.
 
-> **In short, one session:**
+### 7.0 Build paths: how to build
+
+**Rules every path follows** (not negotiable on any path):
+1. **The context that builds a feature is fresh**: a new session, or a fresh subagent. Never chain features in a long session (§7.6). Only the *lanes* coordinator handles several features, and it doesn't write code.
+2. **You approve the plan** before anything is built (checkpoint 1).
+3. **Tests first:** each new test is seen failing (red) before the code that makes it pass.
+4. **One gate command** (typecheck + lint + tests), judged by its exit code, after every task; nothing is committed while it's red.
+5. **A fresh reviewer for every feature**, read-only, running on a **different model from the implementer**. It's never skipped: in the pilot, work that passed its own checks still had real gaps, security ones included, until the reviewer found them.
+6. **Severity triage** of review findings (§7.9): serious ones are fixed before closing, minor ones go to a backlog.
+7. **Evidence before "done":** the `verify_cmd` output is visible, and `human_review` features wait for your approval.
+8. **Wrap up before a long wait** for a person (§7.6).
+
+**The four paths**
+
+| Path | In plain words | When it fits |
+|---|---|---|
+| **`lean`** (recommended start) | One plan per group of related features, with exact contracts instead of full code. Each feature is then built directly in a short session, and one fresh reviewer checks it | Almost every project, especially at the start or with few features left |
+| **`lean-fast`** | `lean` plus a one-time setup that makes every later session faster: the slow end-to-end tests run in parallel, the per-task gate runs only the affected tests (the full gate still runs before review), project agents carry only the tools they need, and plugins the project doesn't use are switched off | Roughly 10+ features left, or the full test run takes more than ~5 minutes |
+| **`lanes`** (advanced) | `lean-fast` plus two features at a time, each in its own working copy (git worktree) with its own port and local data. A coordinator session only coordinates: it hands out work, merges, and runs the full checks after each merge | At least two chains of features that don't depend on each other, the `lean-fast` setup is done, and finishing sooner matters most |
+| **`guided`** | The original flow: Superpowers `writing-plans` → `subagent-driven-development` (an implementer and a reviewer for every task) → `/goal` as a safety net | You want a checkpoint at every step, or a single feature of very high risk. Warning: in the pilot it cost 3.5–6× the `lean` path, with no quality gain |
+
+**How a `lean` feature runs**
+1. **Plan once per group** (its own session): the planner writes `docs/plans/<group>.md` (Superpowers `writing-plans` works if asked for contracts instead of full code). It contains: exact contracts (response codes, formats, names the tests use, shared files), external constants with source and date, and the reviewer's checklist. You approve it (checkpoint 1). In the pilot, every mismatch appeared where the plan hadn't pinned a convention.
+2. **Build each feature in a fresh session:** implement directly with tests first, running the gate after each task.
+3. **Review:** one fresh reviewer subagent reads the diff against the plan and the checklist, and reports each finding with severity, file and fix. Triage (§7.9), fix, and re-review only if an S1 or S2 was fixed.
+4. **Close:** `verify_cmd` visible → checkpoint 2 (PR, or local merge per §7.8) → progress log → end the session.
+
+**`lean-fast` setup:** it's a regular feature (category `infra`) added with `--resync` and built once. It's worth it when it will be reused: in the pilot it cost about as much as 6 features, then cut the full end-to-end run from ~25 minutes to under 2 and the fixed cost of each subagent call to about a quarter.
+
+**`lanes` rules for the coordinator:** freeze the integration branch while a lane catches up, and batch its own commits before or after each merge; quote plan contracts literally in prompts, never paraphrase or add rules; give each agent its own scratch subfolder; the `verify_cmd` that counts is the one the coordinator runs after merging. Go back to `lean-fast` if merges take long or cost per feature climbs above the reference.
+
+**Roles and models:** the implementer runs on an economical model (for example Sonnet, medium effort); the planner and reviewer run on a more capable one (for example Opus, high effort). The reviewer always uses a model different from the implementer's. Don't move the implementer or the coordinator to a pricier model without measuring: in the pilot it roughly doubled the cost per feature with no measured quality gain.
+
+**Reference numbers (from one pilot project, for comparison only):** a web app with tests in three screen widths, built by one person, about 40 features. Costs are API-equivalent; on a subscription they show as usage, not as a bill.
+
+| Path | Cost per medium feature | Time per feature | Note |
+|---|---|---|---|
+| `guided` | 3.5–6× `lean` | 2–3.5× `lean` (active time) | Measured on 2 features |
+| `lean` / `lean-fast` | ~USD 7–9 | ~45–60 min | The `lean-fast` setup ≈ 6 features, once |
+| `lanes` | ~USD 8 | ~30 min | −43% time and −13% cost vs. the serial baseline |
+
+**Choosing and switching:** run `/greenfield:build-path` after the initializer. It records your choice in `docs/build-path.md`, and `/greenfield:next` follows it. At the start of each group of features, `next` checks these signals and suggests re-running the assessment if one appears:
+- cost or time per feature well above the reference for 2+ features (same models);
+- a serious issue reaching your own review;
+- a big change in what's left;
+- a slow test suite.
+
+Modes set per feature in Phase 1 (`spike`, `human`, `inline`, `ultracode`) still apply on any path, as exceptions.
+
+> **In short, one session (`guided` path):**
 > 1. Automatic routine: progress log → `./init.sh` → regression check → next feature.
 > 2. `writing-plans` → **checkpoint 1: you approve the plan** (ask for it in plain language).
 > 3. `/goal` + auto mode, *after* the plan and with a stop clause.
@@ -500,9 +549,11 @@ Read the spec. You are the initializer session: do NOT implement features.
 | Level | File | What it holds | Who writes it |
 |---|---|---|---|
 | **Macro**: project features | `feature_list.json` + `claude-progress.txt` | Which features exist, which pass and what's next | Initializer (Phase 1) + the wrap-up of each session |
-| **Micro**: a feature's tasks | `docs/superpowers/plans/YYYY-MM-DD-<feature>.md` + ledger in `.superpowers/sdd/progress.md` | 2–5 minute steps (test → implement → test → commit) and decisions ("Rulings") | Superpowers, during the session |
+| **Micro**: a feature's tasks | `guided`: `docs/superpowers/plans/YYYY-MM-DD-<feature>.md` + ledger in `.superpowers/sdd/progress.md`. Lean paths: `docs/plans/<group>.md` (one plan per group of features) | Steps (test → implement → test → commit), contracts and decisions ("Rulings") | The planner (Superpowers `writing-plans` or the plan session) |
+| **Quality**: findings | `docs/backlog.md` | Review findings below the severity cut (§7.9) | Each build session's wrap-up |
 
 ### 7.2 One session's flow (non-technical user)
+On the lean paths, a session follows the four steps in §7.0 ("How a `lean` feature runs"). The flow below is the `guided` path:
 
 ```
 1. Start routine (automatic)
@@ -524,6 +575,7 @@ Read the spec. You are the initializer session: do NOT implement features.
 ```
 
 ### 7.3 `/goal` template (after approving the plan)
+Required on the `guided` path. On the lean paths, sessions are short and `/goal` is optional; if you use it, fill in the same blanks and replace the ledger line with "the reviewer approved, with no open S1 or S2".
 ```
 /goal Feature <ID> is complete per the approved plan in docs/superpowers/plans/:
 all its tasks are closed in the ledger with an approved review (spec and quality);
@@ -574,18 +626,26 @@ It runs the start routine, picks the feature, routes it by `mode` (invoking Supe
 2. Run ./init.sh. If anything fails, fix it BEFORE touching features
 3. Regression: re-verify 1–2 features that already passed
 4. Pick the first pending feature with no open dependencies and no pending human_review
-5. Run it according to its "mode" (§6.2c) using the §7.2 flow
+5. Run it according to its "mode" (§6.2c) and the build path in docs/build-path.md (§7.0)
 6. Wrap-up: passes: true only with evidence → update progress log → end
 ```
 In step 4, "pending" means pending **in the active release** (§6.3): features of later releases are skipped.
 
 **RULE — a fresh context per feature.** Every call re-reads the whole conversation, so a session that keeps going gets more expensive with each step:
-- Never chain a second feature in the same session, even a small one. End the session and start a new one.
+- Never chain a second feature in the same session, even a small one. End the session and start a new one. (The `lanes` coordinator is the only exception: it handles several features, but it doesn't write code, and each feature is built in a fresh context.)
 - Don't leave a session open while you wait for a long time (for example, an hour or more for a human review or approval). Wrap up first: commit, update `claude-progress.txt` and `feature_list.json`, end the session. Resume later in a fresh one; the files hold the memory (P3). Idle waits also expire the prompt cache, and rebuilding it costs extra.
 
 - Features with `parallel_safe: true` can be spread across parallel sessions or worktrees; Superpowers already works in an isolated worktree.
 
-### 7.7 Why this option (scored for greenfield, non-technical profile)
+### 7.7 Why several paths (and which tools the `guided` path uses)
+The kit's first version had one way to build (today's `guided` path). A real-world pilot measured eight ways of building on the same project. The lessons that shaped §7.0:
+- **Cost lives in long contexts, not in subagents:** in the original flow, 75% of the cost was the main session re-reading its own growing conversation. Short contexts saved the most.
+- **The fresh reviewer is the part you can't remove;** a reviewer for every task added cost without improving the final result.
+- **The one-time setup (fast tests, lean agents, fewer plugins) helped more than parallelism,** and it also helps serial builds.
+- **A pricier implementer model didn't raise measured quality;** the serious issues were still caught by the reviewer.
+- These come from one project. The open questions are tracked in the repo's issue "Build paths: open experiments".
+
+Tools considered for the `guided` path, scored for greenfield and a non-technical profile:
 
 | Option | Score | In one line |
 |---|---|---|
@@ -608,6 +668,34 @@ Many projects start on one computer with no GitHub repo. The flow still works; o
 | CI | Green checks on the PR | No CI: the verification output in the conversation is the evidence (P1) |
 
 **Backups:** a local-only repo lives on a single disk. Recommend a remote (even a private one) as soon as you're comfortable, or at least a regular backup of the folder.
+
+### 7.9 Severity triage of review findings
+The reviewer reports every finding with a **severity, file and proposed fix**. Fixing everything at once, with a re-review after each round, makes review the most expensive part of building. The cut rule:
+
+| Severity | Meaning | What happens |
+|---|---|---|
+| **S1** | Broken core behavior, security hole, data loss, or a non-negotiable rule broken | Always fixed before closing, then re-reviewed |
+| **S2** | Wrong behavior a user will hit, or a rule without a test that fails when it breaks | Always fixed before closing, then re-reviewed |
+| **S3** | Minor issue | Fixed now only if it's cheap: files already touched, roughly 15 lines, approved copy unchanged. Otherwise → backlog |
+| **S4** | Cosmetic or nitpick | Never fixed in the same pass → backlog |
+
+- A finding that touches a non-negotiable rule is **at least S2**.
+- Re-review only when an S1 or S2 was fixed.
+- The backlog lives in `docs/backlog.md` (template in the plugin: `skills/build-path/templates/backlog.md`): ID, severity, feature, description, origin, status. Review it when planning each group of features.
+- In the pilot this cut re-review rounds from 8 to 3 per group of features with no serious issue left open. It sharpens focus more than it cuts cost per feature.
+
+### 7.10 Fix sessions after your review
+When you try the features yourself (in the browser, on your phone, with real data) and report problems, don't fold the fixes into a feature session. Run **one fix session per review round** (`/greenfield:next fixes`):
+1. List what you reported, in your words, and triage it (§7.9).
+2. Adjust the plan only if a contract changes; otherwise fix directly.
+3. One fresh reviewer per fix; one full gate and `verify_cmd` at the end; then deploy, if that's part of the flow.
+4. Finish with a short checklist for you: what to re-check, where and how.
+
+### 7.11 Measuring (optional)
+To know whether a path works for *your* project, keep `docs/build-log.md` (template: `skills/build-path/templates/build-log.md`). Add one row per build session: path, features, minutes, cost or usage, models, findings by severity, and issues you found later.
+- Claude can read the session's usage from the transcripts Claude Code keeps under `~/.claude/projects/`.
+- Note the models: a pricier model shouldn't be blamed on the path.
+- `/greenfield:build-path` uses this log when you re-evaluate.
 
 ---
 
@@ -789,6 +877,9 @@ Each anti-pattern comes with its symptom and its antidote. If you are an agent a
 | 1 | Subjective items without `human_review` | `/goal` "approves" tone or design | `mode: human` |
 | 1 | The initializer writes feature code | Scaffolding mixed with unreviewed logic | Rule 1 of `/greenfield:initializer` |
 | 2 | Several features per session | Huge commits, exhausted context | `/greenfield:next` takes only one |
+| 2 | Skipping the reviewer to save cost | Work passes its own checks but hides real gaps, security ones included | One fresh reviewer per feature, always (§7.0) |
+| 2 | Re-reviewing every nitpick | Review becomes the most expensive part | Severity triage; re-review only after S1/S2 fixes (§7.9) |
+| 2 | Moving the implementer to a pricier model "for quality" without measuring | Cost per feature doubles; serious issues are still caught by the reviewer | Measure first (§7.11); keep the reviewer on a different model |
 | 2 | `/goal` before approving the plan | The plan was never reviewed | The goal goes after checkpoint 1 (§7.3) |
 | 2 | `/goal` without a stop clause | It pushes on when Superpowers stopped for a reason | "If you need a decision from me, stop" clause |
 | 2 | Vague condition ("make it look good") | The evaluator can't judge | Exit codes, visible output, counts |
@@ -861,7 +952,7 @@ Each anti-pattern comes with its symptom and its antidote. If you are an agent a
 | 3 | 0B | `/write-spec` for the PRD + `/brainstorm` for positioning | `docs/product/PRD.md`: MVP = bookings + reminders + prepayment; **out**: mobile app, multiple locations. North Star: paid bookings per week | Approves and cuts "coupons" from the MVP |
 | 4 | 0C | `/impeccable init` → answers: users on mobile, "warm, simple, trustworthy", references and anti-references | `docs/design/PRODUCT.md` + `DESIGN.md` (tokens, states, WCAG AA) and booking and payment flows | Approves the visual direction after seeing the proposal |
 | 5 | 0D | Superpowers `brainstorming` (reads PRD and DESIGN) | `docs/superpowers/specs/…-design.md` | Approves the spec |
-| 6 | 1 | `/greenfield:initializer` | Profile "web + payments + personal data"; 28 features: F-001 skeleton, F-002 payments spike (ADR), F-003 tokens, … F-024 metric events; `init.sh`, `CLAUDE.md`, hooks, `verify/` with Playwright | Splits F-011 ("checkout") in two; approves |
+| 6 | 1 | `/greenfield:initializer` | Profile "web + payments + personal data"; 28 features: F-001 skeleton, F-002 payments spike (ADR), F-003 tokens, … F-024 metric events; `init.sh`, `CLAUDE.md`, hooks, `verify/` with Playwright | Splits F-011 ("checkout") in two; approves. Then `/greenfield:build-path` recommends `lean-fast` (28 features); she picks it |
 | 7 | 2 | `/greenfield:next` | Picks F-001; plan in plain language | Approves the plan → pastes the `/goal` |
 | 8 | 2 | (waits) | SDD: implements, reviews, tests green, PR opened, Rulings | Reviews the Rulings, chooses "open a PR", merges with green CI |
 | 9 | 2 | `/greenfield:next` (new session) | F-002 is a `spike`: ADR with 3 payment gateways and a recommendation | **Decides** on the gateway |
@@ -887,6 +978,7 @@ Each anti-pattern comes with its symptom and its antidote. If you are an agent a
   - Light: USD 0.10–0.30.
   - Medium (code + tests + PR): USD 0.50–1.50.
   - Heavy or with ultracode: USD 3–10 or more.
+- **Per feature while building:** see the reference numbers for each build path in §7.0 (from one pilot project).
 - **Spend control:**
   - Use Sonnet by default.
   - Add turn and budget caps.
@@ -906,7 +998,8 @@ Each anti-pattern comes with its symptom and its antidote. If you are an agent a
 | v0.5 | Related official Anthropic practices |
 | v0.6 | Expanded Phase 0: market research, product, UX/UI, spec; scored tools |
 | v1.0 | Kit setup; `greenfield` plugin (`initializer`, `next`, `preflight`); anti-patterns; pre-deploy checklist; end-to-end example; published in English |
-| **v1.1** | Fixes from the first real-world test (#2): the guide ships inside the plugin; the initializer merges existing files instead of overwriting them; mandatory MVP cut and roadmap, with a `release` field in `feature_list.json`; prototype gate in 0C (coverage matrix, reviews, minimum criteria); `private/` folder for sensitive inputs; fresh context per feature and wrap-up before long waits; local-only projects (§7.8) with a local security checklist, and `/goal` blanks; attended deploy steps (§13) |
+| v1.1 | Fixes from the first real-world test (#2): the guide ships inside the plugin; the initializer merges existing files instead of overwriting them; mandatory MVP cut and roadmap, with a `release` field in `feature_list.json`; prototype gate in 0C (coverage matrix, reviews, minimum criteria); `private/` folder for sensitive inputs; fresh context per feature and wrap-up before long waits; local-only projects (§7.8) with a local security checklist, and `/goal` blanks; attended deploy steps (§13) |
+| **v1.2** | Build paths (§7.0): `lean`, `lean-fast`, `lanes` and `guided`, with shared safety rules, roles and models, and reference numbers from a real-world pilot; new `/greenfield:build-path` assessment skill; severity triage S1–S4 and a bug backlog (§7.9); fix sessions after human review (§7.10); optional build log (§7.11); `/greenfield:next` follows the chosen path |
 
 **Maintenance:**
 - Claude Code tooling changes fast. Review §3, §4 and §15 against the official docs every quarter.

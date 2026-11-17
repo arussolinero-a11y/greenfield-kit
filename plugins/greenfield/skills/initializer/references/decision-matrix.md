@@ -26,7 +26,7 @@
 ## c) Execution mode (`mode`)
 | `mode` | When | How it runs in Phase 2 |
 |---|---|---|
-| `sdd` (default) | Binary verification | Superpowers `writing-plans` → `subagent-driven-development` → PR, with `/goal` as a safety net |
+| `sdd` (default) | Binary verification | On the chosen build path (guide §7.0): lean paths → group plan, direct build, one fresh reviewer; `guided` → `writing-plans` → `subagent-driven-development` → PR, with `/goal` |
 | `inline` | Small and low-risk | `writing-plans` → `executing-plans` |
 | `ultracode` | Broad and mechanical | `writing-plans` → `/goal` with ultracode on |
 | `spike` | Technical unknown | Regular session → ADR in `docs/decisions/` → the human decides |

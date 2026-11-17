@@ -14,7 +14,7 @@ The greenfield guide ships with this plugin: `../../claude-code-greenfield-guide
 1. **Do not implement any feature.** Only a minimal skeleton, verification tooling and memory files.
 2. **Do not commit until the human approves** the profile and the list.
 3. Explain everything to the human **in plain language**: they may not be technical.
-4. If the spec is missing, stop and recommend completing Phase 0 (guide §5).
+4. If the spec is missing, stop and recommend completing Phase 0 with `/greenfield:discover` (guide §5).
 5. **Never overwrite a file that already exists** (`.claude/settings.json`, `CLAUDE.md`, `.gitignore`, `init.sh`, anything else). Merge instead: keep every existing permission, hook, rule and line; add only what's missing; show the human the diff and wait for their OK. If a clean merge isn't possible, ask.
 
 ## Default mode (initialize)
@@ -26,6 +26,7 @@ Find and read, in this order (whatever exists):
 - `docs/design/PRODUCT.md`, `docs/design/DESIGN.md`
 
 If there are several candidate specs, ask which one to use.
+**Languages:** check that `CLAUDE.md` has a "Languages" section with all four decisions (conversation, documentation, code names, interface copy; guide §5). If it's missing or incomplete, ask the human before generating anything, record the answers there, and write every artifact in the chosen documentation language.
 The MVP cut comes before the list (guide §5.2). Never turn the whole PRD or spec into one build list:
 - PRD with a roadmap that assigns each requirement to a release (MVP → next → later): use it.
 - PRD without a roadmap: stop and help the human add one first.
@@ -87,6 +88,6 @@ It also brings the project's **controls** up to date with the plugin version. If
 3. Show the diff in plain language and wait for approval. If the active release changed, update it in `CLAUDE.md`. Then commit and add an entry to `claude-progress.txt`.
 
 ## What this skill does NOT do
-- It doesn't write the spec. That's Phase 0: Superpowers `brainstorming`, `product-management`, Impeccable.
+- It doesn't write the spec. That's Phase 0: `/greenfield:discover`, with Superpowers `brainstorming`, `product-management`, Impeccable.
 - It doesn't choose how to build. That's `/greenfield:build-path`.
 - It doesn't build features. That's Phase 2: `/greenfield:next`.

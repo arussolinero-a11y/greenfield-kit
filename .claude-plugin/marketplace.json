@@ -5,13 +5,13 @@
   },
   "metadata": {
     "description": "Kit for greenfield projects with Claude Code: a practical guide + skills that orchestrate Anthropic and third-party plugins.",
-    "version": "1.3.0"
+    "version": "1.4.0"
   },
   "plugins": [
     {
       "name": "greenfield",
       "source": "./plugins/greenfield",
-      "description": "Adaptive initializer (Phase 1), build-path assessment and per-feature session starter (Phase 2), and pre-deploy checklist, per the greenfield guide."
+      "description": "Phase 0 guide, adaptive initializer (Phase 1), build-path assessment and per-feature session starter (Phase 2), and pre-deploy checklist, per the greenfield guide."
     }
   ]
 }

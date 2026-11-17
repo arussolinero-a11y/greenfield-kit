@@ -1,16 +1,16 @@
 # Practical Guide: Greenfield Projects with Claude Code
 
-> Following Anthropic's best practices · **v1.3** · 2026-11-17
+> Following Anthropic's best practices · **v1.4** · 2026-11-17
 >
 > **Audience:** people and agents. If you are an agent: sections marked **RULE** are mandatory, decision tables tell you what to do in each context, and templates are meant to be copied as-is.
 >
-> **Status:** v1.3. Ships inside the `greenfield` plugin (`/greenfield:initializer`, `/greenfield:build-path`, `/greenfield:next` and `/greenfield:preflight` skills), so the skills can always read it. Version history in §16.
+> **Status:** v1.4. Ships inside the `greenfield` plugin (`/greenfield:discover`, `/greenfield:initializer`, `/greenfield:build-path`, `/greenfield:next` and `/greenfield:preflight` skills), so the skills can always read it. Version history in §16.
 
 ---
 
 ## 0. Summary in 30 seconds
 
-1. **Phase 0 — Product, UX/UI and spec:** (0A) market research + go/no-go if the product will be sold → (0B) product PRD → (0C) UX/UI, **always** → (0D) technical spec with Superpowers `brainstorming`. The human decides.
+1. **Phase 0 — Product, UX/UI and spec** (`/greenfield:discover`, one sub-phase per session): (0A) market research + go/no-go if the product will be sold, or an optional product/UX benchmark if not → (0B) product PRD with the core and an MVP roadmap → (0C) UX/UI, **always**, with a prototype gate → integration check → (0D) technical spec with Superpowers `brainstorming` and a review loop. The human decides.
 2. **Phase 1 — Adaptive initializer:** a session that **builds no features**. It reads the spec, profiles the project and generates the project's "memory" (`feature_list.json`, `init.sh`, progress log, `CLAUDE.md`, hooks, verification tooling). The human approves the list.
 3. **Phase 2 — Build:** first `/greenfield:build-path` recommends how to build: `lean` (the usual start), `lean-fast`, `lanes` or `guided`. You choose (§7.0). Then one feature per fresh session: you approve the plan → it's built test-first → a fresh reviewer on a different model checks it, with severity triage → a PR, or in a local-only project a local merge after your OK (§7.8). Each feature's mode (`sdd`, `inline`, `ultracode`, `spike`, `human`) was set in Phase 1.
 4. **Phase 3 — Maintenance:** `/loop` to watch something during the session; cloud tasks for daily jobs and event-triggered jobs.
@@ -171,7 +171,7 @@ This guide relies on plugins and skills from Anthropic and third parties. The ki
 
 | Plugin / skill | Purpose | Install |
 |---|---|---|
-| **greenfield** (this kit) | Phase 1 (`/greenfield:initializer`), Phase 2 (`/greenfield:build-path`, `/greenfield:next`), pre-deploy (`/greenfield:preflight`) | `/plugin marketplace add arussolinero-a11y/greenfield-kit` → `/plugin install greenfield@greenfield-kit` |
+| **greenfield** (this kit) | Phase 0 (`/greenfield:discover`), Phase 1 (`/greenfield:initializer`), Phase 2 (`/greenfield:build-path`, `/greenfield:next`), pre-deploy (`/greenfield:preflight`) | `/plugin marketplace add arussolinero-a11y/greenfield-kit` → `/plugin install greenfield@greenfield-kit` |
 | **Superpowers** | Phase 0D (`brainstorming`) and Phase 2 (`writing-plans`, `subagent-driven-development`, TDD) | `/plugin install superpowers@claude-plugins-official` |
 | **product-management** (Anthropic) | Phases 0A, 0B and 3 | `/plugin marketplace add anthropics/knowledge-work-plugins` → `/plugin install product-management@knowledge-work-plugins` |
 | **design** (Anthropic) | Phases 0C and 4 (`/ux-copy`, `/accessibility`, `/critique`) | `/plugin install design@knowledge-work-plugins` |
@@ -188,17 +188,27 @@ This guide relies on plugins and skills from Anthropic and third parties. The ki
 
 ## 5. Phase 0 — Product, UX/UI and spec (the human decides)
 
-Phase 0 has four sub-phases. The **technical spec (0D)** is written last, fed by the others.
+Phase 0 has four sub-phases plus an integration check. The **technical spec (0D)** is written last, fed by the others. `/greenfield:discover` guides it one sub-phase per session (§5.6).
 
 ```
 Will it be sold?
    ├─ Yes ─► 0A Market research ─► GO/NO-GO GATE ─► 0B Product (full)
-   └─ No ──────────────────────────────────────────► 0B Product (lite)
+   └─ No ──► 0A Product/UX benchmark (optional) ──► 0B Product (lite)
                                                         │
                               0C UX/UI (ALWAYS) ◄───────┘
                                                         │
-                              0D Technical spec (Superpowers brainstorming)
+                              Integration check (if there are external systems)
+                                                        │
+                              0D Technical spec (Superpowers brainstorming + review loop)
 ```
+
+**Before 0A — languages.** Decide and write down in `CLAUDE.md` four languages:
+- the conversation;
+- the documentation;
+- names in the code;
+- the interface copy.
+
+A mismatch has a cost (for example, docs in one language and interface in another means quoting interface text and keeping a glossary), so make it a conscious choice instead of finding out after the first commit. Plans keep task headings as `Task N` in English even if the rest is in another language, because tools parse them.
 
 **RULE:** no implementation ultracode and no `/goal` in this phase. Product and architecture decisions are sequential and made by the human. The only exception is research: `/deep-research` uses workflows and is fine here.
 
@@ -208,7 +218,9 @@ Will it be sold?
 - Research notes, drafts and reports go in `docs/product/research/`, so the repo root stays clean. Final deliverables keep the paths listed in each sub-phase.
 - Deliverables may summarize sensitive inputs but never copy personal data from them.
 
-### 5.1 0A — Market research (only if the product will be sold)
+### 5.1 0A — Market research (if the product will be sold) or product/UX benchmark (if not)
+**If it won't be sold**, a full market study doesn't apply, but looking at existing products still helps. The optional **product and UX benchmark** studies 3–6 products for structure, flows, patterns, look and feel, and anti-patterns. It has no market size, pricing or go/no-go. Output: `docs/product/benchmark.md`. Decisions made here (references, patterns to copy or avoid) are carried to 0C. The rest of this section is the market research for products that will be sold.
+
 **Goal:** decide, with evidence, whether it's worth building and for whom.
 
 | Deliverable | Content |
@@ -256,7 +268,7 @@ Save it to docs/product/market-research.md. Explain it to me in plain language.
 ### 5.3 0C — UX/UI (ALWAYS)
 **RULE:** every greenfield product gets its own UX/UI definition **before** the technical spec, even an internal tool or a bot. In a conversational interface (chat, WhatsApp, voice), UX/UI means **conversation design**: tone, message length, buttons and menus, error handling and handoff to a human.
 
-**Mandatory questions** (Claude must ask all of them; if one doesn't apply, it marks it "N/A" with the reason):
+**Mandatory questions** (Claude must cover all of them; if one doesn't apply, it marks it "N/A" with the reason). Answers already given in 0A or 0B are **prefilled** and shown for confirmation, not asked again:
 
 | Topic | Questions |
 |---|---|
@@ -288,15 +300,27 @@ Save it to docs/product/market-research.md. Explain it to me in plain language.
 
 If the prototype changes after approval (for example, when you reopen 0B or 0C), the gate runs again before the new approval.
 
+**Tools actually used.** Before designing, Claude says which recommended tools (§5.5) are installed and which it will use, and records it ("used" / "not installed → alternative"). A missing tool never means a skipped quality step.
+
+**Design handoff.** After approval, the behavior of each screen (states, interactions, edge cases) goes into `docs/design/handoff.md`, with the `design` plugin's `/handoff` or equivalent. 0D reads it.
+
 **Recommended tools:** Impeccable `/impeccable init` (asks what it can't infer and writes `PRODUCT.md`) → `shape` (plans the UX before code) → `document` (`DESIGN.md`). UI UX Pro Max works as a library of styles, palettes and industry rules for proposing the design system. And `/ux-copy` from Anthropic's `design` plugin for microcopy. See §5.5.
 
 ### 5.4 0D — Technical spec
+**Before the spec — integration check.** If the product talks to external systems (APIs, data providers, payments, auth, AI services), check each one first and write `docs/product/integrations.md`:
+- access and auth;
+- limits, quotas and costs, with source and date;
+- unknowns, which become spikes in Phase 1.
+
+If a provider's docs can't be read automatically, save the pages into `private/` and Claude reads them there. Otherwise the spec stalls mid-way on questions nobody checked.
+
 **Tool:** Superpowers `brainstorming`, which produces the spec (in `docs/superpowers/specs/`).
 **RULE:** brainstorming **reads** `docs/product/*` and `docs/design/*` **first**, and the spec references them; it doesn't repeat them.
 ```
-Before starting, read docs/product/PRD.md, docs/product/market-research.md (if it exists),
-docs/design/PRODUCT.md and docs/design/DESIGN.md. The technical spec must respect the
-MVP scope, metrics and design system defined there.
+Before starting, read docs/product/PRD.md, docs/product/market-research.md or benchmark.md (if they exist),
+docs/product/integrations.md, docs/design/PRODUCT.md, docs/design/DESIGN.md and
+docs/design/handoff.md. The technical spec must respect the MVP scope, the core,
+metrics and design system defined there.
 ```
 **Without the plugin:**
 ```
@@ -305,6 +329,15 @@ Ask about users, flows, integrations, sensitive data, rules that must never
 break, and what "done" means. Then write it to spec.md.
 ```
 **Minimum spec output:** goal, users, main flows, external integrations, sensitive data, non-negotiable rules, non-goals, "done" criteria, and references to the PRD and DESIGN.
+
+**RULE — builder review loop.** Before you approve the spec, a fresh read-only reviewer checks it against the plugin's checklist (`skills/discover/references/spec-review-checklist.md`), together with Superpowers' spec-reviewer template if you have it. The checklist covers, among others:
+- every rule computable with the defined data;
+- every parameter with a starting value;
+- the first run able to comply;
+- integration contracts;
+- no contradictions.
+
+After fixes, a **new** reviewer checks again, until there are no findings: fixes often introduce new contradictions.
 
 ### 5.5 Tools for Phase 0 (scored for greenfield)
 
@@ -342,6 +375,24 @@ break, and what "done" means. Then write it to spec.md.
 | Phase 2 (UI) | `frontend-design` + Playwright screenshots | Same |
 | Phase 3 (product) | `/metrics-review`, `/synthesize-research`, `/roadmap-update` | Same |
 | Phase 4 (UX) | `/accessibility` + Impeccable `audit`/`critique` | `/accessibility` + `/critique` |
+
+### 5.6 Running Phase 0: sessions, hand-off and going back
+- **One sub-phase per session.** Doing all of Phase 0 in one conversation fills the context with documents and prototypes. Each session ends by updating `docs/phase0-status.md`, which records:
+  - where Phase 0 stands;
+  - the decisions carried forward;
+  - the tools used;
+  - any pending cascades.
+
+  The next session starts fresh from that file. Heavy reading goes to subagents, which return summaries.
+- **Going back.** Phase 0 isn't strictly linear: 0D can reveal that the PRD or the design must change. Reopen the earlier sub-phase (`/greenfield:discover reopen 0B`), note the change under "Pending cascades", then update in order, each re-approved before the next:
+  - PRD;
+  - DESIGN and flows;
+  - prototype (the gate runs again);
+  - integration check;
+  - spec (the review loop runs again).
+
+  Never edit an approved document silently. Once Phase 1 has started, use `--resync` instead (§10).
+- **Done:** the spec is approved → `/greenfield:initializer` in a fresh session.
 
 ---
 
@@ -908,6 +959,8 @@ Each anti-pattern comes with its symptom and its antidote. If you are an agent a
 | Phase | Anti-pattern | Symptom | Antidote |
 |---|---|---|---|
 | 0A | Building a product that will be sold without researching | "I already know what the market needs" | 0A + go/no-go gate (§5.1) |
+| 0 | All of Phase 0 in one session | Context runs out before 0D; decisions get lost | One sub-phase per session, with `docs/phase0-status.md` as hand-off (§5.6) |
+| 0 | Changing an approved PRD or design in passing | Spec, design and prototype drift apart | Reopen the sub-phase and cascade in order (§5.6) |
 | 0B | A PRD full of technical decisions | The PRD talks about frameworks and tables | The PRD is a business document; technical content goes in the spec (0D) |
 | 0B | An MVP with no "non-goals" | Scope grows every session | An explicit list of what's **out** |
 | 0C | Skipping UX/UI because "it's an MVP" or "it's a bot" | Generic interface; robotic conversation | 0C always (§5.3); for bots, conversation design |
@@ -991,7 +1044,7 @@ Each anti-pattern comes with its symptom and its antidote. If you are an agent a
 | Step | Phase | What she does | What Claude produces | Her decision |
 |---|---|---|---|---|
 | 1 | Setup (§4) | Installs the kit's plugins | — | — |
-| 2 | 0A | `Use /deep-research to research the market for booking software for wellness studios in Colombia…` (template §5.1) | `docs/product/market-research.md`: 7 alternatives (including WhatsApp + spreadsheets), pricing, gaps (local payments, no-shows), TAM with assumptions, recommendation | **GO**, with the hypothesis "no-shows cost more than the subscription" to validate |
+| 2 | 0A | `/greenfield:discover` (set-up: private folder, languages), then `Use /deep-research to research the market for booking software for wellness studios in Colombia…` (template §5.1) | `docs/product/market-research.md`: 7 alternatives (including WhatsApp + spreadsheets), pricing, gaps (local payments, no-shows), TAM with assumptions, recommendation | **GO**, with the hypothesis "no-shows cost more than the subscription" to validate |
 | 3 | 0B | `/write-spec` for the PRD + `/brainstorm` for positioning | `docs/product/PRD.md`: MVP = bookings + reminders + prepayment; **out**: mobile app, multiple locations. North Star: paid bookings per week | Approves and cuts "coupons" from the MVP |
 | 4 | 0C | `/impeccable init` → answers: users on mobile, "warm, simple, trustworthy", references and anti-references | `docs/design/PRODUCT.md` + `DESIGN.md` (tokens, states, WCAG AA) and booking and payment flows | Approves the visual direction after seeing the proposal |
 | 5 | 0D | Superpowers `brainstorming` (reads PRD and DESIGN) | `docs/superpowers/specs/…-design.md` | Approves the spec |
@@ -1043,7 +1096,8 @@ Each anti-pattern comes with its symptom and its antidote. If you are an agent a
 | v1.0 | Kit setup; `greenfield` plugin (`initializer`, `next`, `preflight`); anti-patterns; pre-deploy checklist; end-to-end example; published in English |
 | v1.1 | Fixes from the first real-world test (#2): the guide ships inside the plugin; the initializer merges existing files instead of overwriting them; mandatory MVP cut and roadmap, with a `release` field in `feature_list.json`; prototype gate in 0C (coverage matrix, reviews, minimum criteria); `private/` folder for sensitive inputs; fresh context per feature and wrap-up before long waits; local-only projects (§7.8) with a local security checklist, and `/goal` blanks; attended deploy steps (§13) |
 | v1.2 | Build paths (§7.0): `lean`, `lean-fast`, `lanes` and `guided`, with shared safety rules, roles and models, and reference numbers from a real-world pilot; new `/greenfield:build-path` assessment skill; severity triage S1–S4 and a bug backlog (§7.9); fix sessions after human review (§7.10); optional build log (§7.11); `/greenfield:next` follows the chosen path |
-| **v1.3** | Plans, roles and gates (§7.12): a group plan template (contracts, external constants, measured thresholds, quick probe, human steps outside the gate, tasks that end green, reviewer checklist, coherence pass) and planner/implementer/reviewer agent templates; a single `scripts/gate.sh` with `--affected` and a Stop hook that skips while a subagent works (§6.2d); `feature_list.json` gains the `in_review` status, `requires_human_action` and `built_on_unapproved`; spike closure; saved state and subagent resume |
+| v1.3 | Plans, roles and gates (§7.12): a group plan template (contracts, external constants, measured thresholds, quick probe, human steps outside the gate, tasks that end green, reviewer checklist, coherence pass) and planner/implementer/reviewer agent templates; a single `scripts/gate.sh` with `--affected` and a Stop hook that skips while a subagent works (§6.2d); `feature_list.json` gains the `in_review` status, `requires_human_action` and `built_on_unapproved`; spike closure; saved state and subagent resume |
+| **v1.4** | Phase 0 skill `/greenfield:discover` (one sub-phase per session, `docs/phase0-status.md` hand-off, reopen with ordered cascade, §5.6); language decisions before 0A; optional product/UX benchmark for products that won't be sold (§5.1); prefilled 0C questions, tools-used record and design handoff (§5.3); integration check and builder review loop with a spec checklist (§5.4) |
 
 **Maintenance:**
 - Claude Code tooling changes fast. Review §3, §4 and §15 against the official docs every quarter.

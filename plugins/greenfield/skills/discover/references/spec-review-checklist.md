@@ -1,6 +1,8 @@
 # Spec review checklist (0D builder review)
 
-For a **fresh, read-only reviewer**. Answer each item **OK**, **Finding** (section, what's wrong, proposed fix) or **N/A**. Don't rewrite the spec. Repeat the review with a new reviewer after each round of fixes, until there are no findings left.
+For a **fresh, read-only reviewer**. Answer each item **OK**, **Finding** (section, what's wrong, proposed fix, and whether it's **blocking**) or **N/A**. Don't rewrite the spec, and skip style and wording.
+
+A finding is **blocking** when it would make the spec impossible or wrong to build: a rule that can't be computed, a missing starting value, a contradiction, a missing contract, unhandled sensitive data. Only blocking findings start another round with a new reviewer. Stop when a round has none, and after 3 rounds the person decides what's still open.
 
 | # | Check |
 |---|---|

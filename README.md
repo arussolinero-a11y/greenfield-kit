@@ -7,7 +7,7 @@ A practical guide + Claude Code plugin for building greenfield products **end to
 
 | Skill | Phase | What it does |
 |---|---|---|
-| `/greenfield:discover [sub-phase]` | 0 | Guides product, UX/UI and spec one sub-phase per session: market research or benchmark, PRD with MVP roadmap, UX/UI with prototype gate, integration check, spec with a review loop |
+| `/greenfield:discover [sub-phase \| status \| reopen <sub-phase>]` | 0 | Guides product, UX/UI and spec one sub-phase per session: market research or benchmark, PRD with MVP roadmap, UX/UI with prototype gate, integration check, spec with a review loop. `reopen` goes back to an earlier sub-phase and updates the later documents in order |
 | `/greenfield:initializer [--resync]` | 1 | Reads spec + PRD + DESIGN, profiles the project and generates `feature_list.json`, `init.sh`, `CLAUDE.md`, hooks and `verify/`, **without implementing features** |
 | `/greenfield:build-path` | 2 | Measures the project, asks you 4 plain questions and recommends how to build (`lean`, `lean-fast`, `lanes` or `guided`). You choose |
 | `/greenfield:next [F-ID \| fixes]` | 2 | Start routine → picks the next feature → builds it on your chosen path, with a fresh reviewer and severity triage. `fixes` runs a fix session for what you found |

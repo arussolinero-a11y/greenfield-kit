@@ -20,7 +20,8 @@ The greenfield guide ships with this plugin: `../../claude-code-greenfield-guide
 Read `docs/phase0-status.md` (template: `templates/phase0-status.md`). If it doesn't exist, this is the **first session**: run "Set-up". Otherwise continue with the sub-phase it says is next, or the one passed as argument. `status` only summarizes where Phase 0 stands.
 
 ## Set-up (first session only)
-1. Create `private/` and make sure `.gitignore` lists it before the first commit. Research notes go in `docs/product/research/`.
+Set-up is short and runs in the same session as 0A. 0A is the first sub-phase that ends the session.
+1. If the folder isn't a git repository yet, run `git init`. Then create `private/` and write `.gitignore` with `private/` and `.env` in it **before staging anything**. Stage files by name, never with `git add -A`, so nothing sitting at the root slips into the first commit. Research notes go in `docs/product/research/`.
 2. **Languages.** Ask and record four decisions in `CLAUDE.md`, under a "Languages" section:
    - the conversation;
    - the documentation;
@@ -55,7 +56,9 @@ If the product talks to external systems (APIs, data providers, payment, auth, A
 - limits, quotas and costs, with the source and the date checked;
 - what's still unknown.
 
-If a provider's docs can't be read automatically, ask the person to save the pages into `private/` and read them from there. Unknowns become `spike` features in Phase 1.
+If a provider's docs can't be read automatically, ask the person to save the pages into `private/` and read them from there.
+- Unknowns are marked `spike: yes`, and the initializer turns them into spike features in Phase 1.
+- If a finding changes scope (the core depends on an API that doesn't exist, a cost breaks the budget, a quota is too small for the MVP), stop and **reopen 0B** (below) before writing the spec.
 
 ## 0D — Technical spec
 1. Superpowers `brainstorming` (or the interview prompt in guide §5.4) reads:
@@ -63,7 +66,10 @@ If a provider's docs can't be read automatically, ask the person to save the pag
    - `docs/design/*`, including the handoff.
 
    The spec references those documents; it doesn't repeat them.
-2. **Builder review loop.** A fresh read-only reviewer subagent checks the spec against `references/spec-review-checklist.md`. If Superpowers ships a spec-reviewer template, use it together with the checklist. Fix, then review again with a **fresh** reviewer. Repeat until it approves: fixes often introduce new contradictions, and the second pass catches them.
+2. **Builder review loop.** A fresh read-only reviewer subagent checks the spec against `references/spec-review-checklist.md`. If Superpowers ships a spec-reviewer template, use it together with the checklist.
+   - Fix, then review again with a **fresh** reviewer: fixes often introduce new contradictions, and the second pass catches them.
+   - Only **blocking** findings start another round (see the checklist); style and wording don't.
+   - Stop when a round has no blocking findings. After 3 rounds, show the person what's still open and let them decide.
 3. The person approves the spec. Phase 0 is done: tell them to run `/greenfield:initializer` in a fresh session.
 
 ## Reopen an earlier sub-phase (`reopen <sub-phase>`)

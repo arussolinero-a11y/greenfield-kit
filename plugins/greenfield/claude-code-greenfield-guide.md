@@ -310,7 +310,9 @@ If the prototype changes after approval (for example, when you reopen 0B or 0C),
 **Before the spec — integration check.** If the product talks to external systems (APIs, data providers, payments, auth, AI services), check each one first and write `docs/product/integrations.md`:
 - access and auth;
 - limits, quotas and costs, with source and date;
-- unknowns, which become spikes in Phase 1.
+- unknowns, which become spikes in Phase 1 (the initializer reads this file).
+
+If a finding changes scope, for example the core depends on an API that doesn't exist, reopen 0B before the spec (§5.6).
 
 If a provider's docs can't be read automatically, save the pages into `private/` and Claude reads them there. Otherwise the spec stalls mid-way on questions nobody checked.
 
@@ -337,7 +339,7 @@ break, and what "done" means. Then write it to spec.md.
 - integration contracts;
 - no contradictions.
 
-After fixes, a **new** reviewer checks again, until there are no findings: fixes often introduce new contradictions.
+After fixes, a **new** reviewer checks again, because fixes often introduce new contradictions. Only blocking findings (impossible or wrong to build) start another round; style and wording don't. After 3 rounds, you decide what's still open.
 
 ### 5.5 Tools for Phase 0 (scored for greenfield)
 

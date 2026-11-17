@@ -22,11 +22,13 @@ The greenfield guide ships with this plugin: `../../claude-code-greenfield-guide
 ### Step 0 — Read the inputs
 Find and read, in this order (whatever exists):
 - Technical spec: `docs/superpowers/specs/*-design.md` (Superpowers) or `spec.md`
-- `docs/product/PRD.md` (including its core and roadmap), `docs/product/market-research.md`
-- `docs/design/PRODUCT.md`, `docs/design/DESIGN.md`
+- `docs/product/PRD.md` (including its core and roadmap), `docs/product/market-research.md` or `docs/product/benchmark.md`
+- `docs/product/integrations.md`: every entry marked `spike: yes` becomes a `spike` feature, and its limits and costs go into the profile's risks
+- `docs/design/PRODUCT.md`, `docs/design/DESIGN.md`, `docs/design/handoff.md`: per-screen states and edge cases become feature steps
 
 If there are several candidate specs, ask which one to use.
-**Languages:** check that `CLAUDE.md` has a "Languages" section with all four decisions (conversation, documentation, code names, interface copy; guide §5). If it's missing or incomplete, ask the human before generating anything, record the answers there, and write every artifact in the chosen documentation language.
+**Languages:** check that `CLAUDE.md` has a "Languages" section with all four decisions (conversation, documentation, code names, interface copy; guide §5). If it's missing or incomplete, ask the human before generating anything and record the answers there. If the section already exists, it wins over the template's placeholder section when merging: never add a second one.
+Write prose (descriptions, steps, docs, the progress log) in the documentation language. Keep the machine-read parts exactly as the schema and templates define them: JSON keys, enum values (`pending`, `in_review`, `mvp`…), file and folder names, and `Task N` headings.
 The MVP cut comes before the list (guide §5.2). Never turn the whole PRD or spec into one build list:
 - PRD with a roadmap that assigns each requirement to a release (MVP → next → later): use it.
 - PRD without a roadmap: stop and help the human add one first.

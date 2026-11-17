@@ -14,7 +14,7 @@ The greenfield guide ships with this plugin: `../../claude-code-greenfield-guide
 1. **Do not implement any feature.** Only a minimal skeleton, verification tooling and memory files.
 2. **Do not commit until the human approves** the profile and the list.
 3. Explain everything to the human **in plain language**: they may not be technical.
-4. If the spec is missing, stop and recommend completing Phase 0 (guide §5).
+4. If the spec is missing, stop and recommend completing Phase 0 with `/greenfield:discover` (guide §5).
 5. **Never overwrite a file that already exists** (`.claude/settings.json`, `CLAUDE.md`, `.gitignore`, `init.sh`, anything else). Merge instead: keep every existing permission, hook, rule and line; add only what's missing; show the human the diff and wait for their OK. If a clean merge isn't possible, ask.
 
 ## Default mode (initialize)
@@ -22,10 +22,13 @@ The greenfield guide ships with this plugin: `../../claude-code-greenfield-guide
 ### Step 0 — Read the inputs
 Find and read, in this order (whatever exists):
 - Technical spec: `docs/superpowers/specs/*-design.md` (Superpowers) or `spec.md`
-- `docs/product/PRD.md` (including its core and roadmap), `docs/product/market-research.md`
-- `docs/design/PRODUCT.md`, `docs/design/DESIGN.md`
+- `docs/product/PRD.md` (including its core and roadmap), `docs/product/market-research.md` or `docs/product/benchmark.md`
+- `docs/product/integrations.md`: every entry marked `spike: yes` becomes a `spike` feature, and its limits and costs go into the profile's risks
+- `docs/design/PRODUCT.md`, `docs/design/DESIGN.md`, `docs/design/handoff.md`: per-screen states and edge cases become feature steps
 
 If there are several candidate specs, ask which one to use.
+**Languages:** check that `CLAUDE.md` has a "Languages" section with all four decisions (conversation, documentation, code names, interface copy; guide §5). If it's missing or incomplete, ask the human before generating anything and record the answers there. If the section already exists, it wins over the template's placeholder section when merging: never add a second one.
+Write prose (descriptions, steps, docs, the progress log) in the documentation language. Keep the machine-read parts exactly as the schema and templates define them: JSON keys, enum values (`pending`, `in_review`, `mvp`…), file and folder names, and `Task N` headings.
 The MVP cut comes before the list (guide §5.2). Never turn the whole PRD or spec into one build list:
 - PRD with a roadmap that assigns each requirement to a release (MVP → next → later): use it.
 - PRD without a roadmap: stop and help the human add one first.
@@ -87,6 +90,6 @@ It also brings the project's **controls** up to date with the plugin version. If
 3. Show the diff in plain language and wait for approval. If the active release changed, update it in `CLAUDE.md`. Then commit and add an entry to `claude-progress.txt`.
 
 ## What this skill does NOT do
-- It doesn't write the spec. That's Phase 0: Superpowers `brainstorming`, `product-management`, Impeccable.
+- It doesn't write the spec. That's Phase 0: `/greenfield:discover`, with Superpowers `brainstorming`, `product-management`, Impeccable.
 - It doesn't choose how to build. That's `/greenfield:build-path`.
 - It doesn't build features. That's Phase 2: `/greenfield:next`.

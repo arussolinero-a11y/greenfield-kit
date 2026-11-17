@@ -15,7 +15,7 @@ Pin every convention the code and tests must share. Mismatches show up exactly w
 - Data: <tables/fields, migrations and their numbers>
 
 ## 3. External constants
-Any value that comes from outside the codebase (model ids, prices, quotas, rate limits, error codes of a provider, API versions).
+Any value that comes from outside the codebase (model ids, prices, quotas, rate limits, error codes of a provider, API versions). Start from `docs/product/integrations.md` (Phase 0) when it exists. Re-check any value older than a few weeks and update both files.
 | Constant | Value | Source (URL or doc) | Checked on | Provisional? |
 |---|---|---|---|---|
 | <name> | <value> | <source> | <YYYY-MM-DD> | <yes until a real call confirms it / no> |

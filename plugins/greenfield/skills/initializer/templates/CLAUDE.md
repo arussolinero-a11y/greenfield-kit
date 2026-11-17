@@ -5,6 +5,11 @@
 - Build: `<cmd>` · Lint: `<cmd>` · Test: `<cmd>` · E2E: `<cmd>`
 - Gate (before every commit, judged by exit code): `./scripts/gate.sh` (`--affected` during a task)
 
+## Languages
+<!-- If CLAUDE.md already has a Languages section (written by /greenfield:discover), keep that one and drop this placeholder. -->
+- Conversation: <language> · Documentation: <language> · Names in code: <language> · Interface copy: <language>
+- Plans keep task headings as `Task N` in English (tools parse them).
+
 ## Scope
 - Active release: `mvp` (only features with this `release` are built; later releases wait for `--resync`)
 - Build path: <lean | lean-fast | lanes | guided> (chosen with `/greenfield:build-path`; details in docs/build-path.md)

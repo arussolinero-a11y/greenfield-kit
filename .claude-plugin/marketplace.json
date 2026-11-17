@@ -5,7 +5,7 @@
   },
   "metadata": {
     "description": "Kit for greenfield projects with Claude Code: a practical guide + skills that orchestrate Anthropic and third-party plugins.",
-    "version": "1.0.0"
+    "version": "1.1.0"
   },
   "plugins": [
     {

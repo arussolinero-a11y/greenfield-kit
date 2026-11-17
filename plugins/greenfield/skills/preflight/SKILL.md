@@ -8,12 +8,13 @@ argument-hint: "[release name]"
 
 Produces `docs/releases/<YYYY-MM-DD>-preflight.md` with a **GO / NO-GO** verdict. A single red blocking item = NO-GO.
 Explain the result in plain language: the user may not be technical.
+The greenfield guide ships with this plugin: `../../claude-code-greenfield-guide.md` (relative to this skill's folder). Section numbers below (§) refer to it.
 
 ## A. Automatable (Claude runs them and shows the output)
 | # | Check | How | Blocking |
 |---|---|---|---|
-| A1 | Build, lint, typecheck and tests green | Commands from `CLAUDE.md` + CI status of the latest commit | Yes |
-| A2 | MVP scope complete | Every MVP feature (per the PRD) has `passes: true`; none `in_progress` | Yes |
+| A1 | Build, lint, typecheck and tests green | Commands from `CLAUDE.md` + CI status of the latest commit, if there's CI | Yes |
+| A2 | Release scope complete | Every feature whose `release` is the one being shipped has `passes: true`; none `in_progress` | Yes |
 | A3 | Human reviews closed | Every feature with `human_review: true` approved (recorded in the progress log or PR) | Yes |
 | A4 | No placeholders | Search for `TODO`, `FIXME`, `[PLACEHOLDER]`, `lorem ipsum`, `XXX` and project-specific markers | Yes (in production code) |
 | A5 | No secrets in the repo | `.env` in `.gitignore`; search recent history for keys and tokens; `.env.example` exists | Yes |
@@ -26,7 +27,7 @@ Explain the result in plain language: the user may not be technical.
 ## B. Orchestrated reviews (invoke the skills or ask the user to run them)
 | # | Review | Tool | Blocking |
 |---|---|---|---|
-| B1 | Security of the release diff | `/security-review` | Yes, if there are high findings |
+| B1 | Security of the release diff | `/security-review`; in a local-only project, the checklist review of guide §7.8 on the release diff | Yes, if there are high findings |
 | B2 | Correctness of the release diff | `/code-review` | Yes, if there are high findings |
 | B3 | Operational checklist (staging, smoke tests, monitoring, rollback) | `/deploy-checklist` (Anthropic's `engineering` plugin) | Yes |
 | B4 | Accessibility (if there's a UI) | `/accessibility` (`design` plugin) or Impeccable `audit` | Yes, if there are P0/P1 findings |
@@ -39,6 +40,11 @@ Explain the result in plain language: the user may not be technical.
 - [ ] **Spend limits**: caps on AI, cloud and payment providers.
 - [ ] **Support**: a channel for users and an owner on launch day.
 - [ ] **Final go/no-go** from the product owner.
+
+## The deploy itself (after GO)
+The preflight doesn't deploy. When the user moves on to deploy, remind them (guide §13):
+- Production steps (deploy, migrations on the live database, writing secrets) run in an **attended session** with the user approving each command. In auto mode the safety classifier blocks them one by one even if the user authorized them together; that's expected.
+- For release steps that repeat, a narrow allow rule in `.claude/settings.local.json` for the exact commands is optional (no wildcards), and the release is still approved in the session.
 
 ## Report format
 ```markdown

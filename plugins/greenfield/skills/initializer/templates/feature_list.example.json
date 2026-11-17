@@ -6,10 +6,14 @@
     "depends_on": [],
     "mode": "sdd",
     "risk": "low",
-    "steps": ["curl localhost:3000/health → {\"status\":\"ok\"}", "curl <deployed-url>/health → {\"status\":\"ok\"}"],
+    "steps": [
+      "curl localhost:3000/health → {\"status\":\"ok\"}",
+      "curl <deployed-url>/health → {\"status\":\"ok\"}"
+    ],
     "verify_cmd": "npm test -- health",
     "human_review": false,
     "parallel_safe": false,
+    "release": "mvp",
     "status": "pending",
     "passes": false
   },
@@ -20,9 +24,13 @@
     "depends_on": [],
     "mode": "spike",
     "risk": "medium",
-    "steps": ["docs/decisions/0001-payments.md with options, trade-offs and a recommendation", "Human approval"],
+    "steps": [
+      "docs/decisions/0001-payments.md with options, trade-offs and a recommendation",
+      "Human approval"
+    ],
     "human_review": true,
     "parallel_safe": true,
+    "release": "mvp",
     "status": "pending",
     "passes": false
   },
@@ -30,13 +38,20 @@
     "id": "F-003",
     "category": "design",
     "description": "Design tokens and base components per docs/design/DESIGN.md",
-    "depends_on": ["F-001"],
+    "depends_on": [
+      "F-001"
+    ],
     "mode": "sdd",
     "risk": "low",
-    "steps": ["/styleguide page shows colors, typography, buttons and inputs", "Desktop and mobile screenshots", "Text contrast ≥ 4.5:1"],
+    "steps": [
+      "/styleguide page shows colors, typography, buttons and inputs",
+      "Desktop and mobile screenshots",
+      "Text contrast ≥ 4.5:1"
+    ],
     "verify_cmd": "npm run test:e2e -- styleguide",
     "human_review": true,
     "parallel_safe": true,
+    "release": "mvp",
     "status": "pending",
     "passes": false
   },
@@ -44,15 +59,47 @@
     "id": "F-007",
     "category": "security",
     "description": "The webhook rejects invalid signatures without running business logic",
-    "depends_on": ["F-001"],
+    "depends_on": [
+      "F-001"
+    ],
     "mode": "sdd",
     "risk": "high",
-    "extra_review": ["security"],
-    "steps": ["valid signature → 200", "tampered signature → 401", "0 calls to external services in the test log"],
+    "extra_review": [
+      "security"
+    ],
+    "steps": [
+      "valid signature → 200",
+      "tampered signature → 401",
+      "0 calls to external services in the test log"
+    ],
     "verify_cmd": "npm test -- webhook.signature",
     "human_review": false,
     "parallel_safe": true,
+    "release": "mvp",
     "status": "pending",
     "passes": false
+  },
+  {
+    "id": "F-030",
+    "category": "product",
+    "description": "Waitlist when a time slot is full",
+    "depends_on": [
+      "F-007"
+    ],
+    "mode": "sdd",
+    "risk": "low",
+    "steps": [
+      "Full slot shows 'Join waitlist'",
+      "A cancellation notifies the first person on the waitlist"
+    ],
+    "verify_cmd": "npm run test:e2e -- waitlist",
+    "human_review": false,
+    "parallel_safe": true,
+    "release": "v2",
+    "status": "pending",
+    "passes": false,
+    "history": [
+      "2026-11-17: moved from mvp to v2 when the MVP was cut (resync)"
+    ]
   }
 ]

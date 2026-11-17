@@ -2,7 +2,7 @@
 
 A practical guide + Claude Code plugin for building greenfield products **end to end**, from market research to deploy and operations, following Anthropic's best practices.
 
-- 📘 **Guide:** [`claude-code-greenfield-guide.md`](claude-code-greenfield-guide.md). Written to be read by people and agents.
+- 📘 **Guide:** [`plugins/greenfield/claude-code-greenfield-guide.md`](plugins/greenfield/claude-code-greenfield-guide.md). Written to be read by people and agents. It ships inside the plugin, so the skills can always read it.
 - 🧩 **`greenfield` plugin:** three skills that orchestrate Superpowers and Anthropic's plugins.
 
 | Skill | Phase | What it does |
@@ -18,6 +18,8 @@ A practical guide + Claude Code plugin for building greenfield products **end to
 ```
 The companion plugins (Superpowers, product-management, design, engineering, frontend-design, playwright and, optionally, Impeccable) are listed in §4 of the guide.
 
+Works with or without GitHub: local-only projects are supported (§7.8 of the guide).
+
 ## The flow in one line
 `Phase 0` (market research → PRD → UX/UI → spec) → `/greenfield:initializer` → `/greenfield:next` × N → `/greenfield:preflight` → deploy → Phase 3 (`/loop`, cloud tasks, metrics) → `--resync` when the spec changes.
 
@@ -26,10 +28,11 @@ The companion plugins (Superpowers, product-management, design, engineering, fro
 .claude-plugin/marketplace.json
 plugins/greenfield/
   .claude-plugin/plugin.json
+  claude-code-greenfield-guide.md   the guide
   skills/initializer/   SKILL.md, references/ (matrix, schema), templates/
   skills/next/          SKILL.md
   skills/preflight/     SKILL.md
-claude-code-greenfield-guide.md
+claude-code-greenfield-guide.md     pointer to the guide's new location
 ```
 
 ## License

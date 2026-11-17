@@ -26,7 +26,10 @@ Find and read, in this order (whatever exists):
 - `docs/design/PRODUCT.md`, `docs/design/DESIGN.md`
 
 If there are several candidate specs, ask which one to use.
-If the PRD has no roadmap that assigns each requirement to a release (MVP → next → later), stop and help the human cut the MVP first (guide §5.2). Never turn the whole PRD into one build list.
+The MVP cut comes before the list (guide §5.2). Never turn the whole PRD or spec into one build list:
+- PRD with a roadmap that assigns each requirement to a release (MVP → next → later): use it.
+- PRD without a roadmap: stop and help the human add one first.
+- No PRD (spec only): before profiling, list the spec's capabilities in plain language and ask the human which ones are in the MVP and what the core is. Record the answer in `docs/product/roadmap.md` and use it as the roadmap.
 
 ### Step 1 — Profile → `docs/project-profile.md`
 Answer: project type (web, API, conversational bot, CLI, library, data pipeline, mobile; can be mixed), external interfaces, risks (money, personal data, security, legal), non-deterministic AI behavior, technical unknowns, approximate size, and non-negotiable rules.
@@ -34,7 +37,7 @@ Answer: project type (web, API, conversational bot, CLI, library, data pipeline,
 ### Step 2 — Apply the decision matrix
 Follow `references/decision-matrix.md` to decide:
 - the verification strategy (which tooling goes in `verify/`);
-- the `release` of each feature, from the PRD roadmap (`mvp`, `v2`…); only the MVP is the build path;
+- the `release` of each feature, from the PRD roadmap (`mvp`, `v2`…); only the MVP is the build path. No feature may depend on a feature of a later release: move the dependency into the earlier release or ask the human;
 - the size and order of the MVP list (walking skeleton → spikes → design system → risks → value, starting with the core → instrumentation → polish);
 - each feature's `mode` (`sdd`, `inline`, `ultracode`, `spike`, `human`);
 - which non-negotiable rules become deterministic controls (hooks and deny rules) and which become judgment (`CLAUDE.md` + a verification feature).
@@ -73,7 +76,7 @@ Use it when the spec changes, and also when the scope changes: features moved be
    - **New** → add them with `status: "pending"` and `passes: false`.
    - **Obsolete** → `status: "deprecated"`. **Never delete them.**
    - **Affected** (their behavior changed) → `passes: false`, `status: "pending"` and updated steps, with a note in `history`.
-   - **Moved to another release** → update `release`, with a note in `history`. This is not deprecation.
+   - **Moved to another release** → update `release`, with a note in `history`. This is not deprecation. Then check dependencies: a feature can't depend on one of a later release; move the dependency too or ask.
    - **Unchanged** → don't touch them.
 3. Show the diff in plain language and wait for approval. If the active release changed, update it in `CLAUDE.md`. Then commit and add an entry to `claude-progress.txt`.
 

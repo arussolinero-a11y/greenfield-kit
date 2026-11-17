@@ -15,10 +15,12 @@ A JSON array of objects:
 | `verify_cmd` | string | yes, except `spike` and `human` | Command that must exit 0 |
 | `human_review` | boolean | yes | `true` if a person approves it |
 | `parallel_safe` | boolean | yes | `true` if it can be built in parallel with others |
-| `release` | string | yes | Roadmap release: `mvp`, `v2`, `v3`… Only the active release (in `CLAUDE.md`) is built. Missing = `mvp` (older lists) |
+| `release` | string | yes | Roadmap release: `mvp`, `v2`, `v3`… Only the active release (in `CLAUDE.md`) is built. A feature can't depend on one of a later release |
 | `status` | enum | yes | `pending` \| `in_progress` \| `done` \| `deprecated` |
 | `passes` | boolean | yes | `false` until verified with evidence |
 | `history` | string[] | no | `--resync` notes (date + reason), including release moves |
+
+Lists created before v1.1 have no `release`: until the next `--resync` adds it, read a missing `release` as `mvp`. New lists always include it.
 
 ## Rules for coding sessions
 - They may only change `passes`, `status` and `history`. Moving a feature to another release is a scope change: it goes through `--resync`.

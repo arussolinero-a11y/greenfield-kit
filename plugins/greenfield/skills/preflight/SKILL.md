@@ -27,7 +27,7 @@ The greenfield guide ships with this plugin: `../../claude-code-greenfield-guide
 ## B. Orchestrated reviews (invoke the skills or ask the user to run them)
 | # | Review | Tool | Blocking |
 |---|---|---|---|
-| B1 | Security of the release diff | `/security-review`; in a local-only project, the checklist review of guide §7.8 on the release diff | Yes, if there are high findings |
+| B1 | Security of the release diff | `/security-review`; in a local-only project (no remote), a fresh read-only reviewer with `../next/references/local-security-checklist.md` on the release diff | Yes, if there are high findings |
 | B2 | Correctness of the release diff | `/code-review` | Yes, if there are high findings |
 | B3 | Operational checklist (staging, smoke tests, monitoring, rollback) | `/deploy-checklist` (Anthropic's `engineering` plugin) | Yes |
 | B4 | Accessibility (if there's a UI) | `/accessibility` (`design` plugin) or Impeccable `audit` | Yes, if there are P0/P1 findings |

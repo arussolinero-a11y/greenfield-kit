@@ -12,7 +12,7 @@
 
 1. **Phase 0 — Product, UX/UI and spec:** (0A) market research + go/no-go if the product will be sold → (0B) product PRD → (0C) UX/UI, **always** → (0D) technical spec with Superpowers `brainstorming`. The human decides.
 2. **Phase 1 — Adaptive initializer:** a session that **builds no features**. It reads the spec, profiles the project and generates the project's "memory" (`feature_list.json`, `init.sh`, progress log, `CLAUDE.md`, hooks, verification tooling). The human approves the list.
-3. **Phase 2 — Build:** one feature per session with Superpowers: `writing-plans` (you approve the plan) → `subagent-driven-development` (each task gets an implementer and a reviewer) → `finishing-a-development-branch` (PR). `/goal` acts as a safety net so the session doesn't stop halfway. Each feature's mode (`sdd`, `inline`, `ultracode`, `spike`, `human`) was set in Phase 1.
+3. **Phase 2 — Build:** one feature per session with Superpowers: `writing-plans` (you approve the plan) → `subagent-driven-development` (each task gets an implementer and a reviewer) → `finishing-a-development-branch` (a PR, or in a local-only project a local merge after your OK, §7.8). `/goal` acts as a safety net so the session doesn't stop halfway. Each feature's mode (`sdd`, `inline`, `ultracode`, `spike`, `human`) was set in Phase 1.
 4. **Phase 3 — Maintenance:** `/loop` to watch something during the session; cloud tasks for daily jobs and event-triggered jobs.
 5. **Phase 4 — Audits and large-scale changes:** ultracode once there is code: security audit, test coverage, pre-production review, migrations. Findings go back into `feature_list.json`.
 6. **When the spec changes:** `/greenfield:initializer --resync` adds and deprecates features; it never deletes.
@@ -250,6 +250,7 @@ Save it to docs/product/market-research.md. Explain it to me in plain language.
 **File:** `docs/product/PRD.md` (a business document, not a technical one).
 
 **RULE — cut to an MVP before Phase 1.** The MVP is the smallest slice the user can start using for real, and it must include the core. Everything else goes to a later release in the roadmap, even if it's a "must have" for the full product. The initializer builds only the MVP release (§6.4); later releases are recorded but stay out of the build path until you promote them. Ask: *"If we stopped after the MVP, could the user already get value from it?"* and *"Is the core its own feature (or group of features), not a side detail?"*
+
 **Recommended tools:** Anthropic's `product-management` plugin (`/brainstorm`, `/write-spec` for the PRD, `/roadmap-update`, `/metrics-review`) + third-party frameworks for what it doesn't cover: positioning, pricing, *opportunity solution tree*. See §5.5.
 
 ### 5.3 0C — UX/UI (ALWAYS)
@@ -448,9 +449,8 @@ verify/                verification tooling for the profile
 - early **design system** features (tokens and base components, right after the walking skeleton);
 - for every feature with an interface, a visual-evidence step (screenshot or transcript) and its empty/error state;
 - **instrumentation** features for the PRD metrics;
-- and `human_review: true` wherever the criteria are design-related.
-
-- and the **`release`** of each feature, from the PRD roadmap (§5.2): the MVP release is the active one; later releases are listed but stay out of the build path.
+- `human_review: true` wherever the criteria are design-related;
+- and the **`release`** of each feature, from the PRD roadmap (§5.2): the MVP release is the active one; later releases are listed but stay out of the build path. No feature of the active release may depend on a feature of a later release (it could never be built); the initializer moves the dependency into the active release or asks you.
 
 The initializer shows the **profile** and the **list**, and commits only with your approval. Check:
 - **MVP cut:** do the `mvp` features make a slice the user can really start using, including the core? Is anything in the MVP that could wait?
@@ -540,6 +540,7 @@ Fill in the two blanks; a goal that can never be met keeps the session running f
 | `<CLOSE>` | the feature has `human_review: true` | `evidence for my review is ready and listed; passes stays false until I approve` |
 | `<HANDOFF>` | the repo has a remote (GitHub or similar) | `PR opened` |
 | `<HANDOFF>` | local-only repo (§7.8) | `all work committed on the branch feature/<ID>, ready for me to approve the merge` |
+
 **Why `/goal` comes after the plan:** the plan needs your approval; execution doesn't. This way the goal doesn't push Claude past checkpoint 1.
 **Why the stop clause:** without it, the goal could push on exactly when Superpowers stopped for a good reason (e.g., an irreversible action).
 
@@ -595,15 +596,15 @@ In step 4, "pending" means pending **in the active release** (§6.3): features o
 | Spec Kit `/speckit-implement` + `converge` | 55 | Requires its own spec/plan/tasks: duplicates the Superpowers Phase 0 |
 | Anthropic `autonomous-coding` (Python loop) | 50 | Fully autonomous, but needs an API key and Python, with no checkpoints for you |
 
-### 7.8 Local-only projects (no remote, no GitHub CLI)
-Many projects start on one computer with no GitHub repo. The flow still works; only the hand-off changes. `/greenfield:next` detects this at the start of each session (`git remote` returns nothing, or `gh` isn't installed) and adapts:
+### 7.8 Local-only projects (no remote)
+Many projects start on one computer with no GitHub repo. The flow still works; only the hand-off changes. `/greenfield:next` detects this at the start of each session (`git remote` returns nothing) and adapts. A repo **with** a remote is never local-only: if the GitHub CLI (`gh`) isn't installed, the branch is still pushed and the PR is opened on the website or through a GitHub connector.
 
 | Step | With a remote | Local-only |
 |---|---|---|
 | Where the feature is built | A branch, then a PR | A branch `feature/<ID>`; nothing is committed straight to the main branch |
 | Checkpoint 2 | You choose "open a PR" | You review the summary and evidence, then approve; only then is the branch merged into the main branch locally |
 | `/goal` hand-off | `PR opened` | `all work committed on feature/<ID>, ready for me to approve the merge` (§7.3) |
-| Security review (`extra_review: security`) | `/security-review` | `/security-review` needs a remote. Instead, a fresh read-only reviewer checks `git diff <main-branch>...feature/<ID>` against a checklist: secrets or keys, personal data in logs, missing permission checks, unvalidated input, file permissions, new dependencies. Findings go in the session summary |
+| Security review (`extra_review: security`) | `/security-review` | `/security-review` needs a remote. Instead, a fresh read-only reviewer checks `git diff <main-branch>...feature/<ID>` against the plugin's checklist, `skills/next/references/local-security-checklist.md`. Findings go in the session summary; a high finding blocks the merge |
 | CI | Green checks on the PR | No CI: the verification output in the conversation is the evidence (P1) |
 
 **Backups:** a local-only repo lives on a single disk. Recommend a remote (even a private one) as soon as you're comfortable, or at least a regular backup of the folder.
@@ -905,7 +906,7 @@ Each anti-pattern comes with its symptom and its antidote. If you are an agent a
 | v0.5 | Related official Anthropic practices |
 | v0.6 | Expanded Phase 0: market research, product, UX/UI, spec; scored tools |
 | v1.0 | Kit setup; `greenfield` plugin (`initializer`, `next`, `preflight`); anti-patterns; pre-deploy checklist; end-to-end example; published in English |
-| **v1.1** | Fixes from the first real-world test (#2): the guide ships inside the plugin; the initializer merges existing files instead of overwriting them; mandatory MVP cut and roadmap, with a `release` field in `feature_list.json`; prototype gate in 0C (coverage matrix, reviews, minimum criteria); `private/` folder for sensitive inputs; fresh context per feature and wrap-up before long waits; local-only projects (§7.8) and `/goal` blanks; attended deploy steps (§13) |
+| **v1.1** | Fixes from the first real-world test (#2): the guide ships inside the plugin; the initializer merges existing files instead of overwriting them; mandatory MVP cut and roadmap, with a `release` field in `feature_list.json`; prototype gate in 0C (coverage matrix, reviews, minimum criteria); `private/` folder for sensitive inputs; fresh context per feature and wrap-up before long waits; local-only projects (§7.8) with a local security checklist, and `/goal` blanks; attended deploy steps (§13) |
 
 **Maintenance:**
 - Claude Code tooling changes fast. Review §3, §4 and §15 against the official docs every quarter.

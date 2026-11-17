@@ -13,7 +13,7 @@ The greenfield guide ships with this plugin: `../../claude-code-greenfield-guide
 
 ## 1. Start routine (always)
 1. Read `claude-progress.txt` and `git log --oneline -10`.
-2. Detect the hand-off mode: if `git remote` prints nothing, or the `gh` CLI isn't installed, this is a **local-only** project (guide §7.8). Say so in one line; it changes sections 4 and 5 below.
+2. Detect the hand-off mode: if `git remote` prints nothing, this is a **local-only** project (guide §7.8). Say so in one line; it changes sections 4 and 5 below. A repo with a remote is never local-only: if `gh` isn't installed, push the branch and open the PR on the website or through a GitHub connector.
 3. Run `./init.sh`. If it fails, **stop**: this session's task becomes fixing the environment.
 4. Regression: re-verify 1–2 features with `passes: true` (the ones most related to the next feature) using their `verify_cmd`.
 
@@ -21,6 +21,7 @@ The greenfield guide ships with this plugin: `../../claude-code-greenfield-guide
 - Read the active release in `CLAUDE.md` (no line there = `mvp`). Features of other releases are out of the build path.
 - If the user passed an ID, use it (check that its `depends_on` pass). If it belongs to another release, say so and ask before going on.
 - Otherwise, take the first one of the active release with `status: "pending"` whose dependencies have `passes: true`.
+- If a pending feature of the active release depends on a feature of a later release, it can never be built: don't skip it silently. Tell the user and propose `/greenfield:initializer --resync` to move the dependency into the active release or remove it.
 - Tell the user in 2–3 plain lines: which feature it is, why it's next and how it will be verified.
 - Set `status: "in_progress"`.
 
@@ -44,15 +45,13 @@ all its tasks are closed in the ledger with an approved review (spec and quality
 Only <ID>. If one of the 4 Superpowers stop cases comes up or you need a decision
 from me, stop and ask me. Or stop after 40 turns.
 ```
-Fill in the blanks before showing it (a goal that can never be met keeps the session running for nothing):
-- `<CLOSE>`: `passes: true in feature_list.json` if `human_review: false`; otherwise `evidence for my review is ready and listed; passes stays false until I approve`.
-- `<HANDOFF>`: `PR opened` if there's a remote; in a local-only project, `all work committed on the branch feature/<ID>, ready for me to approve the merge`.
+Fill in `<CLOSE>` (depends on `human_review`) and `<HANDOFF>` (depends on the hand-off mode from step 1.2) with the exact texts in the table of guide §7.3, before showing the block. A goal that can never be met keeps the session running for nothing.
 
 Remind them to have **auto mode** on so it runs unattended.
 
 ## 5. Before wrapping up
 - Apply `verification-before-completion`: no fresh `verify_cmd` output means it's not done.
-- If the feature has `extra_review`: run `/security-review` (security), `/code-review` (code) or the `design` plugin's accessibility review (accessibility). In a local-only project, `/security-review` doesn't work (it needs a remote): have a fresh read-only reviewer check `git diff <main-branch>...feature/<ID>` against the checklist in guide §7.8, and list its findings.
+- If the feature has `extra_review`: run `/security-review` (security), `/code-review` (code) or the `design` plugin's accessibility review (accessibility). In a local-only project, `/security-review` doesn't work (it needs a remote): have a fresh read-only reviewer check `git diff <main-branch>...feature/<ID>` against `references/local-security-checklist.md`, and list its findings. A high finding blocks the merge.
 - If it has an interface: attach screenshots of the normal, empty, error and mobile states.
 - `finishing-a-development-branch` → recommend **"open a PR"** (**checkpoint 2**). Local-only: show the summary and evidence, and merge the branch into the main branch only after the user approves. Never commit features straight to the main branch.
 - Show the list of **Rulings** (decisions made on the user's behalf) and **Deferred minors**.

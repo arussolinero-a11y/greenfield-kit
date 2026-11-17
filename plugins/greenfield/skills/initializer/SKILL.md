@@ -68,18 +68,21 @@ Show:
 4. Questions that help the review: *Could the user start using the product after the MVP? Is the core in it? Is anything in the MVP that could wait? Does each feature fit in one session? Do the steps test real behavior? Does the order make sense? Did subjective items end up as `human`?*
 
 Wait for approval or changes. On approval: `git add` + commit `"chore: initialize project memory (greenfield initializer)"`.
+Then tell the human the next step: run `/greenfield:build-path` to choose how to build (guide §7.0), and start building in a fresh session with `/greenfield:next`.
 
 ## `--resync` mode (the spec or the scope changed)
-Use it when the spec changes, and also when the scope changes: features moved between releases, or a later release promoted to active.
+Use it when the spec changes, when the scope changes (features moved between releases, or a later release promoted to active), and to add a **process feature** the human approved that doesn't come from the spec, such as the `lean-fast` setup proposed by `/greenfield:build-path`.
 1. Read the current spec, PRD (with its roadmap) and DESIGN, and `feature_list.json`.
 2. Compute the diff:
    - **New** → add them with `status: "pending"` and `passes: false`.
    - **Obsolete** → `status: "deprecated"`. **Never delete them.**
    - **Affected** (their behavior changed) → `passes: false`, `status: "pending"` and updated steps, with a note in `history`.
    - **Moved to another release** → update `release`, with a note in `history`. This is not deprecation. Then check dependencies: a feature can't depend on one of a later release; move the dependency too or ask.
+   - **Approved process feature** (not from the spec) → add it with `category: "infra"`, the active release, `status: "pending"`, `passes: false`, and a `history` note saying who proposed it and why.
    - **Unchanged** → don't touch them.
 3. Show the diff in plain language and wait for approval. If the active release changed, update it in `CLAUDE.md`. Then commit and add an entry to `claude-progress.txt`.
 
 ## What this skill does NOT do
 - It doesn't write the spec. That's Phase 0: Superpowers `brainstorming`, `product-management`, Impeccable.
+- It doesn't choose how to build. That's `/greenfield:build-path`.
 - It doesn't build features. That's Phase 2: `/greenfield:next`.
